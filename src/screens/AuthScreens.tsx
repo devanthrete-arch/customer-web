@@ -1,0 +1,291 @@
+import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { AuthSplit } from '../components/AuthSplit';
+import { destinationAfterAuth } from '../lib/api';
+import { digitsOnly } from '../lib/format';
+import {
+  generateOtp,
+  iamConfigured,
+  loginOtp,
+  registerCustomer,
+  resendOtp,
+} from '../lib/iam';
+import {
+  getPendingAuth,
+  setAccessToken,
+  setPendingAuth,
+  setPendingDisplayName,
+} from '../lib/session';
+
+function PhoneField({
+  mobile,
+  setMobile,
+}: {
+  mobile: string;
+  setMobile: (v: string) => void;
+}) {
+  return (
+    <label className="af-field">
+      Mobile
+      <div className="af-phone">
+        <div className="af-cc">+91</div>
+        <input
+          inputMode="numeric"
+          autoComplete="tel"
+          placeholder="9876543210"
+          value={mobile}
+          onChange={(e) => setMobile(digitsOnly(e.target.value).slice(0, 10))}
+        />
+      </div>
+    </label>
+  );
+}
+
+export function AuthSignInScreen() {
+  const navigate = useNavigate();
+  const [mobile, setMobile] = useState('');
+  const [jwt, setJwt] = useState('');
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  async function sendOtp(e: FormEvent) {
+    e.preventDefault();
+    setError('');
+    if (mobile.length < 10) {
+      setError('Enter a 10-digit Indian mobile number.');
+      return;
+    }
+    if (!iamConfigured()) {
+      setError('IAM is not configured. Paste a test JWT below.');
+      return;
+    }
+    setBusy(true);
+    try {
+      const res = await generateOtp(mobile);
+      setPendingAuth({ mobile, otpId: res.otpId });
+      navigate('/auth/otp');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not send OTP');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function pasteJwt(e: FormEvent) {
+    e.preventDefault();
+    setError('');
+    const token = jwt.trim();
+    if (!token) {
+      setError('Paste an access token.');
+      return;
+    }
+    setBusy(true);
+    try {
+      setAccessToken(token);
+      navigate(await destinationAfterAuth(), { replace: true });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Token rejected by Autoflex');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <AuthSplit>
+    <section className="af-screen" data-screen="AUTH-01">
+      <div className="af-auth-hero">
+        <h1 className="af-title">Let&apos;s get you Login!</h1>
+        <p className="af-sub" style={{ color: 'rgba(255,255,255,0.8)' }}>
+          Hi! Welcome back, you&apos;ve been missed
+        </p>
+      </div>
+      <form onSubmit={sendOtp}>
+        <PhoneField mobile={mobile} setMobile={setMobile} />
+        {error ? <p className="af-error">{error}</p> : null}
+        <button className="af-btn" type="submit" disabled={busy}>
+          Send OTP
+        </button>
+      </form>
+      <p className="af-linkrow">
+        Don&apos;t have an account? <Link to="/auth/register">Sign Up</Link>
+      </p>
+      <details className="af-details">
+        <summary>Paste test JWT (IAM down)</summary>
+        <form onSubmit={pasteJwt}>
+          <textarea
+            value={jwt}
+            onChange={(e) => setJwt(e.target.value)}
+            placeholder="eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9..."
+          />
+          <button className="af-btn" type="submit" disabled={busy} style={{ marginTop: 8 }}>
+            Continue with JWT
+          </button>
+        </form>
+      </details>
+    </section>
+    </AuthSplit>
+  );
+}
+
+export function AuthRegisterScreen() {
+  const navigate = useNavigate();
+  const [name, setName] = useState('');
+  const [mobile, setMobile] = useState('');
+  const [agreed, setAgreed] = useState(true);
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  async function onSubmit(e: FormEvent) {
+    e.preventDefault();
+    setError('');
+    if (!agreed) {
+      setError('Agree with Terms & Condition to continue.');
+      return;
+    }
+    if (name.trim().length < 2 || mobile.length < 10) {
+      setError('Name and a 10-digit mobile are required.');
+      return;
+    }
+    if (!iamConfigured()) {
+      setError('IAM is not configured. Use Sign In and paste a test JWT.');
+      return;
+    }
+    setBusy(true);
+    try {
+      await registerCustomer(name.trim(), mobile);
+      const res = await generateOtp(mobile);
+      setPendingDisplayName(name.trim());
+      setPendingAuth({ mobile, otpId: res.otpId });
+      navigate('/auth/otp');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not create account');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <AuthSplit>
+    <section className="af-screen" data-screen="AUTH-02">
+      <div className="af-auth-hero">
+        <h1 className="af-title">Create Account</h1>
+        <p className="af-sub" style={{ color: 'rgba(255,255,255,0.8)' }}>
+          India-first OTP via Frevels IAM
+        </p>
+      </div>
+      <form onSubmit={onSubmit}>
+        <label className="af-field">
+          Full name
+          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Priya Sharma" />
+        </label>
+        <PhoneField mobile={mobile} setMobile={setMobile} />
+        <label className="af-checkrow">
+          <input
+            type="checkbox"
+            checked={agreed}
+            onChange={(e) => setAgreed(e.target.checked)}
+          />
+          Agree with Terms & Condition
+        </label>
+        {error ? <p className="af-error">{error}</p> : null}
+        <button className="af-btn" type="submit" disabled={busy}>
+          Sign Up
+        </button>
+      </form>
+      <p className="af-linkrow">
+        Already have an account? <Link to="/auth/sign-in">Sign In</Link>
+      </p>
+    </section>
+    </AuthSplit>
+  );
+}
+
+export function AuthOtpScreen() {
+  const navigate = useNavigate();
+  const pending = getPendingAuth();
+  const [digits, setDigits] = useState(['', '', '', '', '', '']);
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  const refs = useRef<Array<HTMLInputElement | null>>([]);
+
+  useEffect(() => {
+    if (!pending) navigate('/auth/sign-in', { replace: true });
+  }, [navigate, pending]);
+
+  function setDigit(i: number, value: string) {
+    const d = digitsOnly(value).slice(-1);
+    const next = [...digits];
+    next[i] = d;
+    setDigits(next);
+    if (d && i < 5) refs.current[i + 1]?.focus();
+  }
+
+  async function verify(e: FormEvent) {
+    e.preventDefault();
+    if (!pending) return;
+    const otp = digits.join('');
+    if (otp.length < 4) {
+      setError('Enter the verification code.');
+      return;
+    }
+    setBusy(true);
+    setError('');
+    try {
+      const token = await loginOtp(pending.otpId, otp);
+      setAccessToken(token);
+      navigate(await destinationAfterAuth(), { replace: true });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'OTP failed');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function resend() {
+    if (!pending) return;
+    setError('');
+    try {
+      const res = await resendOtp(pending.otpId);
+      setPendingAuth({ ...pending, otpId: res.otpId || pending.otpId });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Resend failed');
+    }
+  }
+
+  return (
+    <AuthSplit>
+    <section className="af-screen" data-screen="AUTH-03">
+      <h1 className="af-title">Verify Code</h1>
+      <p className="af-sub">
+        Enter the verification code we sent to +91 {pending?.mobile}
+      </p>
+      <form onSubmit={verify}>
+        <div className="af-otp">
+          {digits.map((d, i) => (
+            <input
+              key={i}
+              ref={(el) => {
+                refs.current[i] = el;
+              }}
+              inputMode="numeric"
+              maxLength={1}
+              value={d}
+              onChange={(e) => setDigit(i, e.target.value)}
+            />
+          ))}
+        </div>
+        {error ? <p className="af-error">{error}</p> : null}
+        <button className="af-btn" type="submit" disabled={busy}>
+          Verify
+        </button>
+      </form>
+      <p className="af-linkrow">
+        Didn&apos;t receive OTP?{' '}
+        <button className="af-btn ghost" type="button" onClick={resend}>
+          Resend code
+        </button>
+      </p>
+    </section>
+    </AuthSplit>
+  );
+}
