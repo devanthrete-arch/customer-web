@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AuthSplit } from '../components/AuthSplit';
-import { destinationAfterAuth } from '../lib/api';
+import { destinationAfterAuth, devSignIn } from '../lib/api';
 import { digitsOnly } from '../lib/format';
 import {
   generateOtp,
@@ -16,6 +16,8 @@ import {
   setPendingAuth,
   setPendingDisplayName,
 } from '../lib/session';
+
+const DEV_OTP_ID = 'dev';
 
 function PhoneField({
   mobile,
@@ -56,7 +58,8 @@ export function AuthSignInScreen() {
       return;
     }
     if (!iamConfigured()) {
-      setError('IAM is not configured. Paste a test JWT below.');
+      setPendingAuth({ mobile, otpId: DEV_OTP_ID });
+      navigate('/auth/otp');
       return;
     }
     setBusy(true);
@@ -106,6 +109,11 @@ export function AuthSignInScreen() {
           Send OTP
         </button>
       </form>
+      {!iamConfigured() ? (
+        <p className="af-note">
+          Local mode: any mobile number signs in and any 6-digit code works. Use 9876543210 for the sample garage.
+        </p>
+      ) : null}
       <p className="af-linkrow">
         Don&apos;t have an account? <Link to="/auth/register">Sign Up</Link>
       </p>
@@ -147,7 +155,9 @@ export function AuthRegisterScreen() {
       return;
     }
     if (!iamConfigured()) {
-      setError('IAM is not configured. Use Sign In and paste a test JWT.');
+      setPendingDisplayName(name.trim());
+      setPendingAuth({ mobile, otpId: DEV_OTP_ID });
+      navigate('/auth/otp');
       return;
     }
     setBusy(true);
@@ -231,7 +241,10 @@ export function AuthOtpScreen() {
     setBusy(true);
     setError('');
     try {
-      const token = await loginOtp(pending.otpId, otp);
+      const token =
+        pending.otpId === DEV_OTP_ID
+          ? await devSignIn(pending.mobile)
+          : await loginOtp(pending.otpId, otp);
       setAccessToken(token);
       navigate(await destinationAfterAuth(), { replace: true });
     } catch (err) {
@@ -242,7 +255,7 @@ export function AuthOtpScreen() {
   }
 
   async function resend() {
-    if (!pending) return;
+    if (!pending || pending.otpId === DEV_OTP_ID) return;
     setError('');
     try {
       const res = await resendOtp(pending.otpId);

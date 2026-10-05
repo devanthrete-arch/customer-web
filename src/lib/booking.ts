@@ -3,41 +3,41 @@ const KEY = 'af_booking_draft';
 export type BookingDraft = {
   vehicleId?: string;
   vehicleLabel?: string;
-  vehicleType?: string;
-  categoryId?: string;
-  categoryName?: string;
-  issueDescription?: string;
-  attachments?: { id: string; name: string; type: string; sizeLabel: string }[];
-  mode?: 'SELF_DROP' | 'PICKUP';
-  pickupAddress?: string;
+  vehicleType?: 'TWO_WHEELER' | 'FOUR_WHEELER';
   centerId?: string;
   centerName?: string;
-  estimateInr?: number;
+  centerAutoAccept?: boolean;
+  offerings?: { id: string; name: string; priceInr: number; priceIsStarting: boolean }[];
+  /** Used when no menu item is picked. */
+  baseEstimateInr?: number;
+  issueDescription?: string;
   slotStart?: string;
   slotEnd?: string;
-  slotLabel?: string;
 };
 
-export function getDraft(): BookingDraft | null {
+export function getDraft(): BookingDraft {
   const raw = sessionStorage.getItem(KEY);
-  if (!raw) return null;
+  if (!raw) return {};
   try {
     return JSON.parse(raw) as BookingDraft;
   } catch {
-    return null;
+    return {};
   }
 }
 
-export function setDraft(draft: BookingDraft): void {
-  sessionStorage.setItem(KEY, JSON.stringify(draft));
-}
-
 export function patchDraft(patch: Partial<BookingDraft>): BookingDraft {
-  const next = { ...(getDraft() ?? {}), ...patch };
-  setDraft(next);
+  const next = { ...getDraft(), ...patch };
+  sessionStorage.setItem(KEY, JSON.stringify(next));
   return next;
 }
 
 export function clearDraft(): void {
   sessionStorage.removeItem(KEY);
+}
+
+export function draftEstimate(draft: BookingDraft): number {
+  const picked = draft.offerings ?? [];
+  return picked.length
+    ? picked.reduce((sum, item) => sum + item.priceInr, 0)
+    : (draft.baseEstimateInr ?? 0);
 }

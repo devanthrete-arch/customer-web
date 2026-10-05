@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
-import { Link, Navigate, useNavigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 import { AuthSplit } from '../components/AuthSplit';
 import {
   autoflex,
@@ -8,7 +8,6 @@ import {
 } from '../lib/api';
 import { digitsOnly, localPhone } from '../lib/format';
 import {
-  clearAccessToken,
   clearPendingDisplayName,
   getAccessToken,
   getPendingAuth,
@@ -150,52 +149,6 @@ export function ProfileSetupScreen() {
       />
     </section>
     </AuthSplit>
-  );
-}
-
-export function ProfileScreen() {
-  const navigate = useNavigate();
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [error, setError] = useState('');
-
-  useEffect(() => {
-    void autoflex<Profile>('/v1/me/profile', {}, true)
-      .then(setProfile)
-      .catch((err: unknown) =>
-        setError(err instanceof Error ? err.message : 'Could not load profile'),
-      );
-  }, []);
-
-  function signOut() {
-    clearAccessToken();
-    navigate('/', { replace: true });
-  }
-
-  return (
-    <section className="af-screen af-form">
-      <h1 className="af-title">Profile</h1>
-      {error ? <p className="af-error">{error}</p> : null}
-      {profile ? (
-        <ProfileForm
-          initialName={profile.displayName ?? ''}
-          initialPhone={localPhone(profile.phone)}
-          initialCity={profile.selectedPlaceLabel ?? ''}
-          submitLabel="Save"
-          onDone={() => navigate('/home')}
-        />
-      ) : (
-        <p className="af-hint">Loading profile…</p>
-      )}
-      <div className="af-stack">
-        <Link to="/history">Service history</Link>
-        <Link to="/maintenance">Maintenance</Link>
-        <Link to="/payments">Payments</Link>
-        <Link to="/support">Support</Link>
-      </div>
-      <button className="af-btn ghost" type="button" onClick={signOut}>
-        Sign out
-      </button>
-    </section>
   );
 }
 

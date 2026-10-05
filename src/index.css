@@ -2380,3 +2380,108 @@ details.af-panel summary {
     border-color: rgba(255, 255, 255, 0.55);
   }
 }
+
+/* API-backed screens */
+.af-status-red {
+  background: rgba(211, 47, 47, 0.12);
+  color: var(--af-danger);
+}
+
+.af-center-state {
+  display: grid;
+  min-height: 60vh;
+  place-items: center;
+}
+
+.af-note {
+  margin: 12px 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  color: var(--af-muted);
+  background: color-mix(in srgb, var(--af-primary) 6%, var(--af-surface));
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.af-empty-panel {
+  text-align: center;
+  color: var(--af-muted);
+}
+
+.af-empty-panel h3 {
+  color: var(--af-text);
+}
+
+.af-line-list {
+  display: grid;
+  gap: 10px;
+  margin: 12px 0;
+}
+
+.af-line {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--af-border);
+  border-radius: 14px;
+  background: var(--af-surface);
+}
+
+.af-line.off {
+  opacity: 0.55;
+}
+
+.af-line input {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--af-accent);
+}
+
+.af-line small {
+  display: block;
+  color: var(--af-muted);
+}
+
+.af-upi {
+  display: grid;
+  gap: 6px;
+  padding: 16px;
+  border: 1px dashed var(--af-primary);
+  border-radius: 16px;
+  text-align: center;
+}
+
+.af-upi code {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--af-primary);
+}
+
+.af-row.muted {
+  color: var(--af-muted);
+}
+
+.af-hold {
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(232, 98, 1, 0.1);
+  color: var(--af-accent);
+}
+
+.af-inline-form {
+  display: flex;
+  gap: 8px;
+  align-items: end;
+}
+
+.af-inline-form .af-field {
+  flex: 1;
+  margin: 0;
+}
+
+.af-inline-form .af-btn {
+  width: auto;
+  padding: 0 18px;
+}

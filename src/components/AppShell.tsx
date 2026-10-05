@@ -1,7 +1,8 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { Link, NavLink, Navigate, Outlet, useNavigate } from 'react-router-dom';
+import { useDomain } from '../domain/DomainProvider';
 import { ApiError, autoflex, profileComplete, type Profile } from '../lib/api';
-import { AUTH_BYPASS, getAccessToken } from '../lib/session';
+import { getAccessToken } from '../lib/session';
 import { LogoMark } from './LogoLockup';
 
 const SIDE_NAV = [
@@ -25,6 +26,7 @@ const MOBILE_NAV = [
 ];
 
 export function AppShell() {
+  const { state } = useDomain();
   return (
     <div className="af-app">
       <aside className="af-side">
@@ -57,6 +59,7 @@ export function AppShell() {
             className={({ isActive }) => (isActive ? 'on' : undefined)}
           >
             {item.label}
+            {item.to === '/notifications' && state.unreadCount ? ` (${state.unreadCount})` : ''}
           </NavLink>
         ))}
       </nav>
@@ -86,7 +89,6 @@ export function RequireProfile({ children }: { children: ReactNode }) {
     };
   }, [navigate]);
 
-  if (AUTH_BYPASS) return children;
   if (!getAccessToken()) return <Navigate to="/auth/sign-in" replace />;
   if (state === 'loading') {
     return (

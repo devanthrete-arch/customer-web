@@ -1,10 +1,12 @@
 # customer-web
 
-Customer-facing Autoflex web app. The authenticated product routes currently run as an end-to-end **frontend mock product** so product flows can be evaluated before backend contracts are finalized.
+Customer-facing Autoflex web app. Authenticated routes load profile, vehicles, bookings, jobs, vault, maintenance, invoices, and notifications from `autoflex-backend`.
 
 Brand tokens follow OS `prefers-color-scheme`; desktop uses a sidebar and mobile uses a bottom navigation bar.
 
 ## Run
+
+Start the backend (`cd ../autoflex-backend && PORT=3001 npm run start:memory`), then:
 
 ```bash
 cp .env.example .env
@@ -14,60 +16,13 @@ npm run dev
 
 App: http://localhost:5173
 
-## Mock demo mode
+Sign in with `9876543210` and any OTP while IAM is unset — that hits `POST /v1/dev/session`.
 
-`/` redirects to `/home` while `AUTH_BYPASS` is enabled. Product data is deterministic on first load and persists under localStorage key `autoflex-customer-mock-v1`.
+## Product surfaces
 
-Use **Profile → Reset demo data** to restore the seed state and clear an in-progress booking draft.
+The app reads live Autoflex data. Bookings and jobs appear as one service list. Approvals, vault, maintenance, support, and pay-at-center UPI come from the API.
 
-Key demo flows:
-
-- Dashboard: multiple vehicles, attention items, active-service progress, and quick access.
-- Vehicles: list → simulated registration lookup/manual entry → confirm/complete → detail/edit/archive.
-- Booking: vehicle → type → issue and mock attachment metadata → self drop-off or simulated pickup → center → date/slot → review → local confirmation.
-- Services: active/completed list, booking detail, progress timeline, and additional-work approve/decline.
-- History: completed services and structured service reports.
-- Documents: metadata-only add/list/detail/archive with vehicle, category, and expiry. No cloud upload or download.
-- Maintenance: rule-based upcoming/overdue items, detail, local snooze/complete, and booking link.
-- Payments: invoice list/detail and explicitly simulated payment success. No payment gateway is called.
-- Notifications, profile, addresses, preferences, and support complete the demo.
-
-The existing IAM and HTTP modules remain for later integration, but product demo routes read and write through `src/mock/domain.tsx`.
-
-### Repository seam
-
-`CustomerDomainRepository` defines `load`, `save`, and `reset`. `LocalMockCustomerRepository` is the current adapter, and `MockDomainProvider` exposes typed domain actions to UI screens. A future HTTP repository can implement the same boundary while preserving screen state and validation behavior.
-
-### Backend contracts discovered
-
-Core entities:
-
-- CustomerProfile, Address, Vehicle, VehicleTimelineEvent
-- ServiceBooking, ServiceCenter, AppointmentSlot, AttachmentReference
-- ServiceRecommendation/WorkItem, CustomerDecision, ServiceStatusEvent, ServiceReport
-- VehicleDocument, MaintenanceItem/Reminder
-- Invoice, Payment/Transaction
-- Notification, SupportRequest
-
-Suggested API groups:
-
-- `/customers/me`, `/customers/me/addresses`, `/customers/me/preferences`
-- `/vehicles`, `/vehicles/:id/timeline`
-- `/service-centers`, `/service-centers/:id/slots`, `/service-bookings`
-- `/service-bookings/:id/events`, `/service-bookings/:id/recommendations/:recommendationId/decision`
-- `/service-reports`, `/vehicle-documents`, `/maintenance-items`
-- `/invoices`, `/payments`, `/notifications`, `/support-requests`
-
-Async/event flows that need backend ownership:
-
-- booking confirmation and center acceptance
-- pickup dispatch and status updates
-- inspection evidence and additional-work recommendation
-- idempotent, auditable approve/reject decisions
-- service progress and final report generation
-- finalized invoice creation followed by payment webhook reconciliation
-- document storage scan/processing and expiry-reminder generation
-- notification delivery and read-state synchronization
+`src/domain/DomainProvider.tsx` loads `/v1/me/*`, `/v1/bookings`, and marketplace booking options. Vault file bytes and WhatsApp sends stay local stand-ins.
 
 ### Env
 
@@ -104,7 +59,7 @@ npm run mint:customer-jwt
 
 `LOCAL_JWKS_JSON` is for tests and offline use. When `IAM_JWKS_URL` is set, Autoflex verifies live IAM keys.
 
-When auth bypass is disabled, the existing landing, OTP, IAM token, and profile-setup modules remain available for later API integration.
+With IAM env vars empty, OTP falls through to the local backend session.
 
 ## Scripts
 

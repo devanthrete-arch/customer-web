@@ -2,8 +2,8 @@ const TOKEN_KEY = 'af_access_token';
 const PENDING_KEY = 'af_pending_auth';
 const NAME_KEY = 'af_pending_display_name';
 
-/** Temporary: open the dashboard without IAM. Remove when auth should return. */
-export const AUTH_BYPASS = true;
+/** Fired when the API rejects the stored token, so the app can return to sign-in. */
+export const SIGNED_OUT_EVENT = 'af:signed-out';
 
 export function getAccessToken(): string | null {
   return localStorage.getItem(TOKEN_KEY);
@@ -17,8 +17,15 @@ export function clearAccessToken(): void {
   localStorage.removeItem(TOKEN_KEY);
 }
 
+export function signOut(): void {
+  clearAccessToken();
+  sessionStorage.clear();
+  window.dispatchEvent(new Event(SIGNED_OUT_EVENT));
+}
+
 export type PendingAuth = {
   mobile: string;
+  /** `dev` when signing in through the local backend instead of IAM. */
   otpId: string;
 };
 

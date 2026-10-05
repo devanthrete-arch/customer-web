@@ -1,4 +1,4 @@
-import { getAccessToken } from './session';
+import { getAccessToken, signOut } from './session';
 
 const API_URL = import.meta.env.VITE_AUTOFLEX_API_URL || 'http://localhost:3001';
 
@@ -34,17 +34,26 @@ export async function autoflex<T>(
     const token = getAccessToken();
     if (token) headers.set('Authorization', `Bearer ${token}`);
   }
-  const res = await fetch(`${API_URL}${path}`, { ...init, headers });
+  let res: Response;
+  try {
+    res = await fetch(`${API_URL}${path}`, { ...init, headers });
+  } catch {
+    throw new ApiError(0, 'Autoflex is unreachable. Check your connection and try again.');
+  }
   if (!res.ok) {
+    if (auth && res.status === 401) signOut();
     throw new ApiError(res.status, await parseError(res));
   }
   if (res.status === 204) return undefined as T;
   return (await res.json()) as T;
 }
 
+export function errorMessage(err: unknown, fallback = 'Something went wrong'): string {
+  return err instanceof Error && err.message ? err.message : fallback;
+}
+
 export type Profile = {
   id: string;
-  iamUserId: string;
   displayName: string | null;
   phone: string | null;
   selectedPlaceLabel: string | null;
@@ -68,67 +77,11 @@ export async function destinationAfterAuth(): Promise<string> {
   }
 }
 
-export type Category = {
-  id: string;
-  name: string;
-  slug: string;
-};
-
-export type Offer = {
-  id: string;
-  kicker: string | null;
-  title: string;
-  percentOff: number | null;
-  ctaLabel: string | null;
-};
-
-export type CenterListItem = {
-  id: string;
-  displayName: string;
-  distanceMeters: number;
-  formattedAddress: string | null;
-  ratingAvg: number | null;
-  ratingCount: number;
-};
-
-export type CenterDetail = {
-  id: string;
-  displayName: string;
-  formattedAddress: string | null;
-  ratingAvg: number | null;
-  ratingCount: number;
-  hoursStart: string;
-  hoursEnd: string;
-  bookingEnabled: boolean;
-  about: string;
-  categories: { id: string; name: string }[];
-};
-
-export type GarageVehicle = {
-  id: string;
-  make: string;
-  model: string;
-  year: number | null;
-  registrationNumber: string;
-  vehicleType: string;
-  fuel: string | null;
-  transmission: string | null;
-};
-
-export type Slot = { start: string; end: string; available: boolean };
-
-export type Booking = {
-  id: string;
-  status: string;
-  mode: string;
-  estimateInr: string;
-  slotStart: string;
-  slotEnd: string;
-  paymentMode: string;
-  issueDescription: string | null;
-  vehicleId: string;
-  serviceCenterId: string;
-  vehicleLabel: string;
-  registrationNumber: string;
-  centerName: string;
-};
+/** Local backend sign-in (`npm run start:memory`); stands in for IAM OTP. */
+export async function devSignIn(mobile: string): Promise<string> {
+  const session = await autoflex<{ accessToken: string }>('/v1/dev/session', {
+    method: 'POST',
+    body: JSON.stringify({ phone: mobile }),
+  });
+  return session.accessToken;
+}

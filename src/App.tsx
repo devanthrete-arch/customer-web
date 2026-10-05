@@ -1,4 +1,5 @@
-import { Navigate, Outlet, Route, Routes } from 'react-router-dom';
+import { useEffect } from 'react';
+import { Navigate, Outlet, Route, Routes, useNavigate } from 'react-router-dom';
 import { AppShell, RequireProfile } from './components/AppShell';
 import {
   AuthOtpScreen,
@@ -7,37 +8,47 @@ import {
 } from './screens/AuthScreens';
 import { LandingScreen } from './screens/LandingScreen';
 import { ProfileSetupScreen, RequireToken } from './screens/ProfileScreens';
+import { DashboardScreen } from './screens/HomeScreen';
 import {
-  MockAddressesScreen,
-  MockBookCenterScreen,
-  MockBookIssueScreen,
-  MockBookModeScreen,
-  MockBookReviewScreen,
-  MockBookScheduleScreen,
-  MockBookTypeScreen,
-  MockBookVehicleScreen,
-  MockDashboardScreen,
-  MockDocumentAddScreen,
-  MockDocumentDetailScreen,
-  MockDocumentsScreen,
-  MockHistoryDetailScreen,
-  MockHistoryScreen,
-  MockMaintenanceDetailScreen,
-  MockMaintenanceScreen,
-  MockNotificationsScreen,
-  MockPaymentDetailScreen,
-  MockPaymentsScreen,
-  MockPreferencesScreen,
-  MockProfileScreen,
-  MockRecommendationScreen,
-  MockServiceDetailScreen,
-  MockServiceListScreen,
-  MockSupportScreen,
-  MockVehicleAddScreen,
-  MockVehicleDetailScreen,
-  MockVehicleEditScreen,
-  MockVehicleListScreen,
-} from './screens/MockProductScreens';
+  VehicleAddScreen,
+  VehicleDetailScreen,
+  VehicleEditScreen,
+  VehicleListScreen,
+} from './screens/GarageScreens';
+import {
+  ApprovalScreen,
+  HistoryDetailScreen,
+  HistoryScreen,
+  ServiceDetailScreen,
+  ServiceListScreen,
+} from './screens/ServicesScreens';
+import {
+  BookCenterScreen,
+  BookIssueScreen,
+  BookReviewScreen,
+  BookScheduleScreen,
+  BookServicesScreen,
+  BookVehicleScreen,
+} from './screens/BookingScreens';
+import {
+  DocumentAddScreen,
+  DocumentDetailScreen,
+  DocumentsScreen,
+  MaintenanceAddScreen,
+  MaintenanceDetailScreen,
+  MaintenanceScreen,
+  PaymentDetailScreen,
+  PaymentsScreen,
+} from './screens/OwnershipScreens';
+import {
+  AddressesScreen,
+  NotificationsScreen,
+  PreferencesScreen,
+  ProfileScreen,
+  SupportScreen,
+} from './screens/AccountScreens';
+import { DomainProvider } from './domain/DomainProvider';
+import { SIGNED_OUT_EVENT } from './lib/session';
 
 function PhoneFrame() {
   return (
@@ -48,6 +59,13 @@ function PhoneFrame() {
 }
 
 export default function App() {
+  const navigate = useNavigate();
+  useEffect(() => {
+    const onSignedOut = () => navigate('/auth/sign-in', { replace: true });
+    window.addEventListener(SIGNED_OUT_EVENT, onSignedOut);
+    return () => window.removeEventListener(SIGNED_OUT_EVENT, onSignedOut);
+  }, [navigate]);
+
   return (
     <Routes>
       <Route path="/" element={<Navigate to="/home" replace />} />
@@ -67,39 +85,41 @@ export default function App() {
         <Route
           element={
             <RequireProfile>
-              <AppShell />
+              <DomainProvider>
+                <AppShell />
+              </DomainProvider>
             </RequireProfile>
           }
         >
-          <Route path="/home" element={<MockDashboardScreen />} />
-          <Route path="/vehicles" element={<MockVehicleListScreen />} />
-          <Route path="/vehicles/new" element={<MockVehicleAddScreen />} />
-          <Route path="/vehicles/:id/edit" element={<MockVehicleEditScreen />} />
-          <Route path="/vehicles/:id" element={<MockVehicleDetailScreen />} />
-          <Route path="/services" element={<MockServiceListScreen />} />
-          <Route path="/services/book/vehicle" element={<MockBookVehicleScreen />} />
-          <Route path="/services/book/type" element={<MockBookTypeScreen />} />
-          <Route path="/services/book/issue" element={<MockBookIssueScreen />} />
-          <Route path="/services/book/mode" element={<MockBookModeScreen />} />
-          <Route path="/services/book/center" element={<MockBookCenterScreen />} />
-          <Route path="/services/book/schedule" element={<MockBookScheduleScreen />} />
-          <Route path="/services/book/review" element={<MockBookReviewScreen />} />
-          <Route path="/services/:id/recommendations/:recommendationId" element={<MockRecommendationScreen />} />
-          <Route path="/services/:id" element={<MockServiceDetailScreen />} />
-          <Route path="/documents" element={<MockDocumentsScreen />} />
-          <Route path="/documents/new" element={<MockDocumentAddScreen />} />
-          <Route path="/documents/:id" element={<MockDocumentDetailScreen />} />
-          <Route path="/history" element={<MockHistoryScreen />} />
-          <Route path="/history/:id" element={<MockHistoryDetailScreen />} />
-          <Route path="/maintenance" element={<MockMaintenanceScreen />} />
-          <Route path="/maintenance/:id" element={<MockMaintenanceDetailScreen />} />
-          <Route path="/payments" element={<MockPaymentsScreen />} />
-          <Route path="/payments/:id" element={<MockPaymentDetailScreen />} />
-          <Route path="/notifications" element={<MockNotificationsScreen />} />
-          <Route path="/support" element={<MockSupportScreen />} />
-          <Route path="/profile" element={<MockProfileScreen />} />
-          <Route path="/profile/addresses" element={<MockAddressesScreen />} />
-          <Route path="/profile/preferences" element={<MockPreferencesScreen />} />
+          <Route path="/home" element={<DashboardScreen />} />
+          <Route path="/vehicles" element={<VehicleListScreen />} />
+          <Route path="/vehicles/new" element={<VehicleAddScreen />} />
+          <Route path="/vehicles/:id/edit" element={<VehicleEditScreen />} />
+          <Route path="/vehicles/:id" element={<VehicleDetailScreen />} />
+          <Route path="/services" element={<ServiceListScreen />} />
+          <Route path="/services/book/vehicle" element={<BookVehicleScreen />} />
+          <Route path="/services/book/center" element={<BookCenterScreen />} />
+          <Route path="/services/book/services" element={<BookServicesScreen />} />
+          <Route path="/services/book/issue" element={<BookIssueScreen />} />
+          <Route path="/services/book/schedule" element={<BookScheduleScreen />} />
+          <Route path="/services/book/review" element={<BookReviewScreen />} />
+          <Route path="/services/:id/approval" element={<ApprovalScreen />} />
+          <Route path="/services/:id" element={<ServiceDetailScreen />} />
+          <Route path="/documents" element={<DocumentsScreen />} />
+          <Route path="/documents/new" element={<DocumentAddScreen />} />
+          <Route path="/documents/:id" element={<DocumentDetailScreen />} />
+          <Route path="/history" element={<HistoryScreen />} />
+          <Route path="/history/:id" element={<HistoryDetailScreen />} />
+          <Route path="/maintenance" element={<MaintenanceScreen />} />
+          <Route path="/maintenance/new" element={<MaintenanceAddScreen />} />
+          <Route path="/maintenance/:id" element={<MaintenanceDetailScreen />} />
+          <Route path="/payments" element={<PaymentsScreen />} />
+          <Route path="/payments/:id" element={<PaymentDetailScreen />} />
+          <Route path="/notifications" element={<NotificationsScreen />} />
+          <Route path="/support" element={<SupportScreen />} />
+          <Route path="/profile" element={<ProfileScreen />} />
+          <Route path="/profile/addresses" element={<AddressesScreen />} />
+          <Route path="/profile/preferences" element={<PreferencesScreen />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
