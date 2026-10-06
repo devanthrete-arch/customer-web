@@ -3,26 +3,27 @@ import { Link, NavLink, Navigate, Outlet, useNavigate } from 'react-router-dom';
 import { useDomain } from '../domain/DomainProvider';
 import { ApiError, autoflex, profileComplete, type Profile } from '../lib/api';
 import { getAccessToken } from '../lib/session';
+import { Icon, type IconName } from './Icons';
 import { LogoMark } from './LogoLockup';
 
-const SIDE_NAV = [
-  { to: '/home', label: 'Home', end: true },
-  { to: '/vehicles', label: 'Vehicles', end: false },
-  { to: '/services', label: 'Services', end: false },
-  { to: '/documents', label: 'Documents', end: true },
-  { to: '/maintenance', label: 'Maintenance', end: true },
-  { to: '/history', label: 'Service history', end: true },
-  { to: '/payments', label: 'Payments', end: true },
-  { to: '/support', label: 'Support', end: true },
-  { to: '/profile', label: 'Profile', end: true },
+const SIDE_NAV: { to: string; label: string; end: boolean; icon: IconName }[] = [
+  { to: '/home', label: 'Home', end: true, icon: 'home' },
+  { to: '/vehicles', label: 'Vehicles', end: false, icon: 'vehicle' },
+  { to: '/services', label: 'Services', end: false, icon: 'wrench' },
+  { to: '/documents', label: 'Documents', end: true, icon: 'file' },
+  { to: '/maintenance', label: 'Maintenance', end: true, icon: 'calendar' },
+  { to: '/history', label: 'Service history', end: true, icon: 'history' },
+  { to: '/payments', label: 'Payments', end: true, icon: 'card' },
+  { to: '/support', label: 'Support', end: true, icon: 'support' },
+  { to: '/profile', label: 'Profile', end: true, icon: 'user' },
 ];
 
-const MOBILE_NAV = [
-  { to: '/home', label: 'Home', end: true },
-  { to: '/vehicles', label: 'Vehicles', end: false },
-  { to: '/services', label: 'Services', end: false },
-  { to: '/notifications', label: 'Activity', end: true },
-  { to: '/profile', label: 'Profile', end: false },
+const MOBILE_NAV: { to: string; label: string; end: boolean; icon: IconName }[] = [
+  { to: '/home', label: 'Home', end: true, icon: 'home' },
+  { to: '/vehicles', label: 'Vehicles', end: false, icon: 'vehicle' },
+  { to: '/services', label: 'Services', end: false, icon: 'wrench' },
+  { to: '/notifications', label: 'Activity', end: true, icon: 'bell' },
+  { to: '/profile', label: 'Profile', end: false, icon: 'user' },
 ];
 
 export function AppShell() {
@@ -42,6 +43,7 @@ export function AppShell() {
               end={item.end}
               className={({ isActive }) => (isActive ? 'on' : undefined)}
             >
+              <Icon name={item.icon} />
               {item.label}
             </NavLink>
           ))}
@@ -58,6 +60,7 @@ export function AppShell() {
             end={item.end}
             className={({ isActive }) => (isActive ? 'on' : undefined)}
           >
+            <Icon name={item.icon} />
             {item.label}
             {item.to === '/notifications' && state.unreadCount ? ` (${state.unreadCount})` : ''}
           </NavLink>

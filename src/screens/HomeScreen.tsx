@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { Icon } from '../components/Icons';
 import { useDomain } from '../domain/DomainProvider';
 import {
   SERVICE_STAGES,
@@ -8,6 +9,7 @@ import {
   serviceStatusLabel,
 } from '../domain/model';
 import { formatInr } from '../lib/format';
+import { vehiclePhoto } from '../lib/photos';
 import { StatusPill, maintenanceTone, serviceTone, type Tone } from './ui';
 
 type Attention = { key: string; to: string; tone: Tone; pill: string; title: string; detail: string; urgent?: boolean };
@@ -79,21 +81,25 @@ export function DashboardScreen() {
             to="/notifications"
             aria-label={`${state.unreadCount} unread notifications`}
           >
-            🔔 {state.unreadCount ? <b>{state.unreadCount}</b> : null}
+            <Icon name="bell" />
+            {state.unreadCount ? <b>{state.unreadCount}</b> : null}
           </Link>
         </div>
       </header>
 
       <div className="af-dash-actions">
         <Link to="/vehicles">
+          <Icon name="vehicle" />
           <strong>{activeVehicles.length}</strong>
           <span>Vehicles</span>
         </Link>
         <Link className="primary" to="/services/book/vehicle">
+          <Icon name="wrench" />
           <strong>Book</strong>
           <span>Service</span>
         </Link>
         <Link to="/services">
+          <Icon name="status" />
           <strong>{activeServices.length}</strong>
           <span>Active</span>
         </Link>
@@ -168,12 +174,19 @@ export function DashboardScreen() {
           );
           return (
             <article className="af-vehicle-card" key={vehicle.id}>
+              <img
+                className="af-vehicle-photo"
+                src={vehiclePhoto(vehicle.vehicleType)}
+                alt=""
+              />
               <div className="af-card-line">
                 <div>
                   <h3>{vehicle.label}</h3>
                   <span className="af-plate">{vehicle.registrationNumber}</span>
                 </div>
-                <span className="af-vehicle-glyph">{vehicle.vehicleType === 'TWO_WHEELER' ? '🛵' : '🚙'}</span>
+                <span className="af-vehicle-glyph">
+                  <Icon name="vehicle" />
+                </span>
               </div>
               <dl className="af-metrics">
                 <div>
@@ -207,18 +220,22 @@ export function DashboardScreen() {
       <h2 className="af-dash-heading">Quick access</h2>
       <div className="af-quick-grid">
         <Link to="/documents">
+          <Icon name="file" />
           <b>Documents</b>
-          <span>Vault & expiry</span>
+          <span>Vault and expiry</span>
         </Link>
         <Link to="/history">
+          <Icon name="history" />
           <b>History</b>
           <span>Reports</span>
         </Link>
         <Link to="/maintenance">
+          <Icon name="calendar" />
           <b>Maintenance</b>
           <span>Reminders</span>
         </Link>
         <Link to="/payments">
+          <Icon name="card" />
           <b>Payments</b>
           <span>Bills</span>
         </Link>

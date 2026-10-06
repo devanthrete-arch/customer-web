@@ -178,7 +178,7 @@ export function AddressesScreen() {
       />
       {form ? (
         <form
-          className="af-panel"
+          className="af-panel af-address-form"
           onSubmit={(event) => {
             event.preventDefault();
             void run(async () => {
