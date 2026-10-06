@@ -6,7 +6,7 @@ Brand tokens follow OS `prefers-color-scheme`; desktop uses a sidebar and mobile
 
 ## Run
 
-Start the backend (`cd ../autoflex-backend && PORT=3001 npm run start:memory`), then:
+Start the durable workshop (`cd ../autoflex-backend && npm run start:workshop` after Postgres and migrations; see that repo's README), then:
 
 ```bash
 cp .env.example .env
@@ -16,7 +16,7 @@ npm run dev
 
 App: http://localhost:5173
 
-Sign in with `9876543210` and any OTP while IAM is unset — that hits `POST /v1/dev/session`.
+Sign in with any OTP while IAM is unset — that hits `POST /v1/dev/session`. Workshop customers: Priya Sharma `9876543210`, Nikhil Menon `9845123450`, Aisha Khan `9900887766`. `npm run start:memory` in the backend is the throwaway in-memory API on the same port.
 
 ## Product surfaces
 

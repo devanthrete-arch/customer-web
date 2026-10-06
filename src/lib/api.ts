@@ -77,7 +77,7 @@ export async function destinationAfterAuth(): Promise<string> {
   }
 }
 
-/** Local backend sign-in (`npm run start:memory`); stands in for IAM OTP. */
+/** Local backend sign-in (`npm run start:workshop`); stands in for IAM OTP. */
 export async function devSignIn(mobile: string): Promise<string> {
   const session = await autoflex<{ accessToken: string }>('/v1/dev/session', {
     method: 'POST',
