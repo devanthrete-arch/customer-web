@@ -5,7 +5,7 @@ const steps = [
   {
     n: '1',
     title: 'Add your vehicle',
-    body: 'Save the bike or scooter you actually ride. One account can hold more than one.',
+    body: 'Save the bike, scooter, or car you use. One account can hold more than one.',
   },
   {
     n: '2',
@@ -15,95 +15,99 @@ const steps = [
   {
     n: '3',
     title: 'Bring it in',
-    body: 'You ride there yourself. Pay at the center when the visit is done.',
+    body: 'You take the vehicle there yourself. Pay at the center when the visit is done.',
   },
 ];
 
 const points = [
   {
-    title: 'One place for your vehicles',
-    body: 'Registration, make, and model stay on your account, so the next booking starts from the vehicle — not from memory.',
+    title: 'Status',
+    body: 'From the request through pickup, the visit shows where the work stands.',
   },
   {
-    title: 'A booking you can open again',
-    body: 'After you confirm, the visit stays under Services with the center, the time, and the status.',
+    title: 'Estimate',
+    body: 'The booked work and its price stay on the visit, before anyone asks you to approve more.',
   },
   {
-    title: 'No card to enter',
-    body: 'This visit is pay-at-center. You are not asked for card details before you arrive.',
+    title: 'Center',
+    body: 'The garage name, the slot, and your request stay attached to the booking.',
+  },
+  {
+    title: 'Pay at the center',
+    body: 'You are not asked for card details here. You pay by UPI, card, or cash when you collect the vehicle.',
   },
 ];
 
 export function LandingScreen() {
   return (
     <div className="af-landing">
-      <header className="af-landing-hero">
-        <div className="af-landing-wrap">
-          <nav className="af-landing-nav" aria-label="Landing">
-            <Link className="af-landing-brand" to="/">
-              <LogoMark decorative className="af-logo af-logo-nav" />
-              <span>Autoflex</span>
+      <header className="af-landing-bar">
+        <div className="af-landing-wrap af-landing-nav">
+          <Link className="af-landing-brand" to="/">
+            <LogoMark decorative className="af-logo af-logo-nav" />
+            <span>Autoflex</span>
+          </Link>
+          <nav className="af-landing-nav-actions" aria-label="Account">
+            <Link className="af-landing-signin" to="/auth/sign-in">
+              Sign in
             </Link>
-            <div className="af-landing-nav-actions">
-              <Link className="af-landing-signin" to="/auth/sign-in">
-                Sign in
-              </Link>
-              <Link className="af-landing-cta" to="/auth/register">
-                Get started
-              </Link>
-            </div>
+            <Link className="af-landing-cta" to="/auth/register">
+              Get started
+            </Link>
           </nav>
-
-          <div className="af-landing-hero-grid">
-            <div>
-              <LogoMark className="af-logo af-logo-hero" />
-              <p className="af-landing-kicker">Care you can trust</p>
-              <h1>Book a service without chasing the garage on WhatsApp.</h1>
-              <p className="af-landing-lead">
-                Autoflex is the place you keep your vehicle and the visit. Add it,
-                choose a time, bring it in, and pay at the center.
-              </p>
-              <div className="af-landing-hero-actions">
-                <Link className="af-landing-cta af-landing-cta-lg" to="/auth/register">
-                  Get started
-                </Link>
-                <Link className="af-landing-signin af-landing-signin-lg" to="/auth/sign-in">
-                  I already have an account
-                </Link>
-              </div>
-            </div>
-
-            <aside className="af-landing-preview" aria-label="What a confirmed visit looks like">
-              <p className="af-landing-preview-kicker">After you confirm</p>
-              <h2>Your visit stays on the account</h2>
-              <dl>
-                <div>
-                  <dt>Service</dt>
-                  <dd>Periodic service</dd>
-                </div>
-                <div>
-                  <dt>How you arrive</dt>
-                  <dd>You bring the vehicle in</dd>
-                </div>
-                <div>
-                  <dt>Payment</dt>
-                  <dd>Pay at the center</dd>
-                </div>
-              </dl>
-              <p className="af-landing-preview-note">
-                After you confirm, this card also shows the center and the time you picked.
-              </p>
-            </aside>
-          </div>
         </div>
       </header>
+
+      <section className="af-landing-hero">
+        <div className="af-landing-wrap af-landing-hero-grid">
+          <div>
+            <p className="af-landing-kicker">Care you can trust</p>
+            <h1>Book a service. Watch the visit. Pay at the center.</h1>
+            <p className="af-landing-lead">
+              Autoflex is where you keep your vehicle and the service visit. Add it, choose a time,
+              bring it in, and follow the work until it is ready.
+            </p>
+            <div className="af-landing-hero-actions">
+              <Link className="af-landing-cta af-landing-cta-lg" to="/auth/register">
+                Get started
+              </Link>
+              <Link className="af-landing-signin af-landing-signin-lg" to="/auth/sign-in">
+                I already have an account
+              </Link>
+            </div>
+          </div>
+
+          <aside className="af-landing-preview" aria-label="What a confirmed visit looks like">
+            <p className="af-landing-preview-kicker">After you book</p>
+            <h2>The visit stays on your account</h2>
+            <dl>
+              <div>
+                <dt>Status</dt>
+                <dd>Booking confirmed</dd>
+              </div>
+              <div>
+                <dt>Estimate</dt>
+                <dd>Periodic service · ₹1,499</dd>
+              </div>
+              <div>
+                <dt>Center</dt>
+                <dd>Apex Auto Garage · 11:00 am</dd>
+              </div>
+              <div>
+                <dt>Payment</dt>
+                <dd>Pay at the center</dd>
+              </div>
+            </dl>
+          </aside>
+        </div>
+      </section>
 
       <main>
         <section className="af-landing-section">
           <div className="af-landing-wrap">
             <h2>How a visit works</h2>
             <p className="af-landing-intro">
-              Three steps. You can sign in with your mobile number and stop as soon as the booking is confirmed.
+              Sign in with your mobile number. You can stop as soon as the booking is confirmed.
             </p>
             <ol className="af-landing-steps">
               {steps.map((step) => (
@@ -119,7 +123,7 @@ export function LandingScreen() {
 
         <section className="af-landing-section af-landing-section-alt">
           <div className="af-landing-wrap">
-            <h2>What stays with you</h2>
+            <h2>What you can see after booking</h2>
             <ul className="af-landing-points">
               {points.map((point) => (
                 <li key={point.title}>
@@ -153,7 +157,7 @@ export function LandingScreen() {
       <section className="af-landing-close">
         <div className="af-landing-wrap">
           <h2>Keep the next service in one place.</h2>
-          <p>Create an account with your mobile number. It takes a short OTP, then your profile.</p>
+          <p>Create an account with your mobile number. It takes a short code, then your profile.</p>
           <Link className="af-landing-cta af-landing-cta-lg" to="/auth/register">
             Get started
           </Link>

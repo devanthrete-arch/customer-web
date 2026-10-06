@@ -138,7 +138,7 @@ export function ProfileScreen() {
         type="button"
         onClick={() => {
           signOut();
-          navigate('/auth/sign-in', { replace: true });
+          navigate('/', { replace: true });
         }}
       >
         Sign out

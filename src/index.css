@@ -10,7 +10,7 @@
   --af-success: #2e7d32;
   --af-danger: #d32f2f;
   --af-radius: 16px;
-  --af-shadow: 0 8px 24px rgba(2, 57, 112, 0.08);
+  --af-shadow: 0 10px 28px rgba(2, 57, 112, 0.1);
   color-scheme: light;
   font-family: Inter, system-ui, sans-serif;
 }
@@ -44,6 +44,8 @@ body,
 body {
   background: var(--af-bg);
   color: var(--af-text);
+  font-size: 16px;
+  line-height: 1.5;
 }
 
 button,
@@ -166,8 +168,10 @@ a {
 
 .af-title {
   margin: 0;
-  font-size: 22px;
-  font-weight: 700;
+  font-size: clamp(26px, 3vw, 32px);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
 }
 
 .af-sub {
@@ -296,9 +300,10 @@ a {
   min-height: 52px;
   border: 0;
   border-radius: 16px;
-  background: var(--af-primary);
+  background: var(--af-accent);
   color: #fff;
   font-weight: 700;
+  cursor: pointer;
 }
 
 .af-btn:disabled {
@@ -307,7 +312,7 @@ a {
 
 .af-btn.ghost {
   background: transparent;
-  color: var(--af-accent);
+  color: var(--af-primary);
 }
 
 .af-btn.danger {
@@ -340,6 +345,14 @@ a {
   border-radius: 14px;
   padding: 14px 14px;
   outline: none;
+}
+
+.af-field input:focus,
+.af-field textarea:focus,
+.af-field select:focus,
+.af-otp input:focus {
+  border-color: var(--af-primary);
+  box-shadow: 0 0 0 3px rgba(2, 57, 112, 0.16);
 }
 
 .af-field textarea {
@@ -501,7 +514,8 @@ a {
 
 .af-section h2 {
   margin: 0;
-  font-size: 16px;
+  font-size: 20px;
+  letter-spacing: -0.02em;
 }
 
 .af-see {
@@ -768,7 +782,7 @@ a {
 }
 
 .af-nav a.on {
-  color: var(--af-accent);
+  color: var(--af-primary);
 }
 
 .af-app {
@@ -791,6 +805,14 @@ a {
   color: var(--af-text);
 }
 
+.af-landing-bar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: #023970;
+  color: #ffffff;
+}
+
 .af-landing-wrap {
   width: min(1080px, calc(100% - 40px));
   margin: 0 auto;
@@ -801,7 +823,7 @@ a {
   overflow: hidden;
   background: #023970;
   color: #ffffff;
-  padding: 20px 0 64px;
+  padding: 36px 0 72px;
 }
 
 .af-landing-hero::before {
@@ -829,7 +851,7 @@ a {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 8px 0 28px;
+  padding: 14px 0;
 }
 
 .af-landing-brand {
@@ -983,7 +1005,7 @@ a {
 }
 
 .af-landing-section-alt {
-  background: var(--af-surface);
+  background: rgba(2, 57, 112, 0.06);
 }
 
 .af-landing-section h2,
@@ -1097,8 +1119,15 @@ a {
     grid-template-columns: 1fr;
   }
 
-  .af-landing-nav-actions .af-landing-signin {
-    display: none;
+  .af-landing-nav-actions {
+    gap: 8px;
+  }
+
+  .af-landing-cta,
+  .af-landing-signin {
+    min-height: 36px;
+    padding: 0 12px;
+    font-size: 13px;
   }
 }
 
@@ -1445,7 +1474,8 @@ a {
 
   .af-side nav a.on {
     color: #ffffff;
-    background: rgba(255, 255, 255, 0.12);
+    background: rgba(232, 98, 1, 0.22);
+    box-shadow: inset 3px 0 0 #e86201;
   }
 
   .af-nav {
@@ -1453,18 +1483,18 @@ a {
   }
 
   .af-app-main {
-    width: min(1100px, 100%);
+    width: min(960px, 100%);
     margin: 0 auto;
   }
 
   .af-app .af-screen {
     min-height: auto;
-    padding: 28px 28px 48px;
+    padding: 36px 40px 64px;
   }
 
   .af-dash-hero {
-    margin: -28px -28px 0;
-    padding: 28px 28px 56px;
+    margin: -36px -40px 0;
+    padding: 32px 40px 56px;
     border-radius: 0 0 28px 28px;
   }
 
@@ -1534,16 +1564,37 @@ a {
     color: #e86201;
   }
 
+  .af-auth-lead {
+    max-width: 28ch;
+    margin: 12px 0 0;
+    font-size: 18px;
+    line-height: 1.45;
+    color: rgba(255, 255, 255, 0.86);
+  }
+
   .af-auth-layout .af-screen {
     min-height: 100dvh;
     justify-content: center;
-    max-width: 560px;
+    max-width: 480px;
     width: 100%;
     margin: 0 auto;
+    padding: 48px 40px;
   }
 
   .af-auth-layout .af-auth-hero {
-    display: none;
+    background: none;
+    color: var(--af-text);
+    margin: 0 0 8px;
+    padding: 0;
+    border-radius: 0;
+  }
+
+  .af-auth-layout .af-auth-hero .af-title {
+    color: var(--af-text);
+  }
+
+  .af-auth-layout .af-auth-hero .af-sub {
+    color: var(--af-muted);
   }
 }
 
@@ -2352,8 +2403,12 @@ details.af-panel summary {
 }
 
 @media (min-width: 900px) {
+  .af-landing-points {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .af-wide {
-    max-width: 1100px;
+    max-width: 960px;
   }
 
   .af-form {
@@ -2375,10 +2430,45 @@ details.af-panel summary {
     color: #fff;
   }
 
-  .af-btn.secondary {
-    color: #fff;
+  .af-btn.secondary,
+  .af-btn.ghost {
+    color: var(--af-accent);
     border-color: rgba(255, 255, 255, 0.55);
   }
+
+  .af-nav a.on {
+    color: var(--af-accent);
+  }
+
+  .af-landing-section-alt {
+    background: #1e1e1e;
+  }
+
+  .af-field input:focus,
+  .af-field textarea:focus,
+  .af-field select:focus,
+  .af-otp input:focus {
+    border-color: var(--af-accent);
+    box-shadow: 0 0 0 3px rgba(232, 98, 1, 0.28);
+  }
+}
+
+.af-auth-kicker {
+  margin: 0 0 8px;
+  color: var(--af-accent);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.af-auth-hero .af-title,
+.af-auth-hero .af-auth-kicker {
+  color: #ffffff;
+}
+
+.af-auth-hero .af-sub {
+  color: rgba(255, 255, 255, 0.86);
 }
 
 /* API-backed screens */

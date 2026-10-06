@@ -97,10 +97,9 @@ export function AuthSignInScreen() {
     <AuthSplit>
     <section className="af-screen" data-screen="AUTH-01">
       <div className="af-auth-hero">
-        <h1 className="af-title">Let&apos;s get you Login!</h1>
-        <p className="af-sub" style={{ color: 'rgba(255,255,255,0.8)' }}>
-          Hi! Welcome back, you&apos;ve been missed
-        </p>
+        <p className="af-auth-kicker">Autoflex</p>
+        <h1 className="af-title">Sign in</h1>
+        <p className="af-sub">Book a service, watch the visit, and pay at the center.</p>
       </div>
       <form onSubmit={sendOtp}>
         <PhoneField mobile={mobile} setMobile={setMobile} />
@@ -178,10 +177,9 @@ export function AuthRegisterScreen() {
     <AuthSplit>
     <section className="af-screen" data-screen="AUTH-02">
       <div className="af-auth-hero">
-        <h1 className="af-title">Create Account</h1>
-        <p className="af-sub" style={{ color: 'rgba(255,255,255,0.8)' }}>
-          India-first OTP via Frevels IAM
-        </p>
+        <p className="af-auth-kicker">Autoflex</p>
+        <h1 className="af-title">Get started</h1>
+        <p className="af-sub">Your name and an Indian mobile number. We&apos;ll send a one-time code.</p>
       </div>
       <form onSubmit={onSubmit}>
         <label className="af-field">
@@ -268,9 +266,10 @@ export function AuthOtpScreen() {
   return (
     <AuthSplit>
     <section className="af-screen" data-screen="AUTH-03">
-      <h1 className="af-title">Verify Code</h1>
+      <p className="af-auth-kicker">Autoflex</p>
+      <h1 className="af-title">Enter the code</h1>
       <p className="af-sub">
-        Enter the verification code we sent to +91 {pending?.mobile}
+        We sent a one-time code to +91 {pending?.mobile}
       </p>
       <form onSubmit={verify}>
         <div className="af-otp">

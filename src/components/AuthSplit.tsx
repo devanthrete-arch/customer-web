@@ -8,6 +8,7 @@ export function AuthSplit({ children }: { children: ReactNode }) {
         <LogoMark className="af-logo af-logo-hero" />
         <p className="af-auth-word">Autoflex</p>
         <p className="af-auth-tag">Care you can trust</p>
+        <p className="af-auth-lead">Book a service, watch the visit, and pay at the center.</p>
       </aside>
       {children}
     </div>

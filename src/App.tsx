@@ -48,7 +48,7 @@ import {
   SupportScreen,
 } from './screens/AccountScreens';
 import { DomainProvider } from './domain/DomainProvider';
-import { SIGNED_OUT_EVENT } from './lib/session';
+import { getAccessToken, SIGNED_OUT_EVENT } from './lib/session';
 
 function PhoneFrame() {
   return (
@@ -58,18 +58,23 @@ function PhoneFrame() {
   );
 }
 
+function FrontDoor() {
+  if (getAccessToken()) return <Navigate to="/home" replace />;
+  return <LandingScreen />;
+}
+
 export default function App() {
   const navigate = useNavigate();
   useEffect(() => {
-    const onSignedOut = () => navigate('/auth/sign-in', { replace: true });
+    const onSignedOut = () => navigate('/', { replace: true });
     window.addEventListener(SIGNED_OUT_EVENT, onSignedOut);
     return () => window.removeEventListener(SIGNED_OUT_EVENT, onSignedOut);
   }, [navigate]);
 
   return (
     <Routes>
-      <Route path="/" element={<Navigate to="/home" replace />} />
-      <Route path="/landing" element={<LandingScreen />} />
+      <Route path="/" element={<FrontDoor />} />
+      <Route path="/landing" element={<Navigate to="/" replace />} />
       <Route element={<PhoneFrame />}>
         <Route path="/auth/sign-in" element={<AuthSignInScreen />} />
         <Route path="/auth/register" element={<AuthRegisterScreen />} />
