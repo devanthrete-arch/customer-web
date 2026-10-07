@@ -57,13 +57,15 @@ export type Profile = {
   displayName: string | null;
   phone: string | null;
   selectedPlaceLabel: string | null;
+  dateOfBirth: string | null;
 };
 
 export function profileComplete(profile: Profile | null | undefined): boolean {
   return Boolean(
     profile?.displayName?.trim() &&
       profile.phone?.trim() &&
-      profile.selectedPlaceLabel?.trim(),
+      profile.selectedPlaceLabel?.trim() &&
+      profile.dateOfBirth,
   );
 }
 

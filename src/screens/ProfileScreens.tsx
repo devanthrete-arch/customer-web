@@ -18,20 +18,24 @@ function ProfileForm({
   initialName,
   initialPhone,
   initialCity,
+  initialDateOfBirth,
   submitLabel,
   onDone,
 }: {
   initialName: string;
   initialPhone: string;
   initialCity: string;
+  initialDateOfBirth: string;
   submitLabel: string;
   onDone: () => void;
 }) {
   const [name, setName] = useState(initialName);
   const [phone, setPhone] = useState(initialPhone);
   const [city, setCity] = useState(initialCity);
+  const [dateOfBirth, setDateOfBirth] = useState(initialDateOfBirth);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -48,6 +52,10 @@ function ProfileForm({
       setError('Enter your city.');
       return;
     }
+    if (!dateOfBirth) {
+      setError('Enter your date of birth.');
+      return;
+    }
     setBusy(true);
     try {
       await autoflex(
@@ -58,6 +66,7 @@ function ProfileForm({
             displayName: name.trim(),
             phone,
             selectedPlaceLabel: city.trim(),
+            dateOfBirth,
             locale: 'en-IN',
           }),
         },
@@ -94,6 +103,18 @@ function ProfileForm({
         City
         <input value={city} onChange={(e) => setCity(e.target.value)} placeholder="Bengaluru" />
       </label>
+      <label className="af-field">
+        Date of birth
+        <input
+          type="date"
+          required
+          min="1900-01-01"
+          max={today}
+          value={dateOfBirth}
+          onChange={(e) => setDateOfBirth(e.target.value)}
+        />
+      </label>
+      <p className="af-hint">Kept on your account. We use it to know your age. We do not store a separate age.</p>
       {error ? <p className="af-error">{error}</p> : null}
       <button className="af-btn" type="submit" disabled={busy}>
         {submitLabel}
@@ -139,11 +160,12 @@ export function ProfileSetupScreen() {
     <AuthSplit>
     <section className="af-screen af-form" data-screen="AUTH-07">
       <h1 className="af-title">Your profile</h1>
-      <p className="af-sub">We need your name, mobile number, and city before the dashboard.</p>
+      <p className="af-sub">We need your name, mobile number, city, and date of birth before the dashboard.</p>
       <ProfileForm
         initialName={profile?.displayName ?? peekPendingDisplayName()}
         initialPhone={localPhone(profile?.phone) || getPendingAuth()?.mobile || ''}
         initialCity={profile?.selectedPlaceLabel ?? ''}
+        initialDateOfBirth={profile?.dateOfBirth ?? ''}
         submitLabel="Continue"
         onDone={() => navigate('/home', { replace: true })}
       />

@@ -17,6 +17,8 @@ export type ApiProfile = {
   serviceUpdates: boolean;
   maintenanceReminders: boolean;
   documentReminders: boolean;
+  dateOfBirth: string | null;
+  ageYears: number | null;
 };
 
 export type ApiAddress = {

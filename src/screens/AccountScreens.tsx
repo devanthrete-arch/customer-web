@@ -64,6 +64,7 @@ export function ProfileScreen() {
     email: state.profile.email ?? '',
     phone: localPhone(state.profile.phone),
     selectedPlaceLabel: state.profile.selectedPlaceLabel ?? '',
+    dateOfBirth: state.profile.dateOfBirth ?? '',
   });
   const [saved, setSaved] = useState(false);
   const { busy, error, run } = useAction();
@@ -77,6 +78,7 @@ export function ProfileScreen() {
         email: form.email.trim() || undefined,
         phone: form.phone,
         selectedPlaceLabel: form.selectedPlaceLabel.trim(),
+        dateOfBirth: form.dateOfBirth,
       });
       setSaved(true);
     });
@@ -114,6 +116,20 @@ export function ProfileScreen() {
             onChange={(event) => setForm({ ...form, selectedPlaceLabel: event.target.value })}
           />
         </label>
+        <label className="af-field">
+          Date of birth
+          <input
+            type="date"
+            required
+            min="1900-01-01"
+            max={new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' })}
+            value={form.dateOfBirth}
+            onChange={(event) => setForm({ ...form, dateOfBirth: event.target.value })}
+          />
+        </label>
+        {state.profile.ageYears !== null ? (
+          <p className="af-hint">Age on this account: {state.profile.ageYears} years.</p>
+        ) : null}
         <ErrorText error={error} />
         <button className="af-btn" disabled={busy}>
           Save profile
