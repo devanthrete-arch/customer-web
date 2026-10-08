@@ -7,6 +7,7 @@ import {
   type Profile,
 } from '../lib/api';
 import { digitsOnly, localPhone } from '../lib/format';
+import { BOOKING_AGE_POLICY } from '../lib/booking-policy';
 import {
   clearPendingDisplayName,
   getAccessToken,
@@ -114,7 +115,7 @@ function ProfileForm({
           onChange={(e) => setDateOfBirth(e.target.value)}
         />
       </label>
-      <p className="af-hint">Kept on your account. We use it to know your age. We do not store a separate age.</p>
+      <p className="af-hint">We use your date of birth to check booking eligibility. {BOOKING_AGE_POLICY}</p>
       {error ? <p className="af-error">{error}</p> : null}
       <button className="af-btn" type="submit" disabled={busy}>
         {submitLabel}

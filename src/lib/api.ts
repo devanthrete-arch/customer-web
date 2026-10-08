@@ -4,21 +4,23 @@ const API_URL = import.meta.env.VITE_AUTOFLEX_API_URL || 'http://localhost:3001'
 
 export class ApiError extends Error {
   status: number;
-  constructor(status: number, message: string) {
+  code?: string;
+  constructor(status: number, message: string, code?: string) {
     super(message);
     this.status = status;
+    this.code = code;
   }
 }
 
-async function parseError(res: Response): Promise<string> {
+async function parseError(res: Response): Promise<ApiError> {
   try {
-    const body = (await res.json()) as { message?: string | string[] };
-    if (Array.isArray(body.message)) return body.message.join(', ');
-    if (body.message) return body.message;
+    const body = (await res.json()) as { message?: string | string[]; code?: string };
+    const message = Array.isArray(body.message) ? body.message.join(', ') : body.message;
+    if (message) return new ApiError(res.status, message, body.code);
   } catch {
     /* ignore */
   }
-  return res.statusText || 'Request failed';
+  return new ApiError(res.status, res.statusText || 'Request failed');
 }
 
 export async function autoflex<T>(
@@ -42,7 +44,7 @@ export async function autoflex<T>(
   }
   if (!res.ok) {
     if (auth && res.status === 401) signOut();
-    throw new ApiError(res.status, await parseError(res));
+    throw await parseError(res);
   }
   if (res.status === 204) return undefined as T;
   return (await res.json()) as T;

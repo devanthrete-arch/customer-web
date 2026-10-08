@@ -6,6 +6,7 @@ import type { AddressInput, SupportInput } from '../domain/client';
 import { formatDate } from '../domain/model';
 import { digitsOnly, formatWhen, localPhone } from '../lib/format';
 import { signOut } from '../lib/session';
+import { BOOKING_AGE_POLICY } from '../lib/booking-policy';
 import { Empty, ErrorText, PageHeader, StatusPill, useAction } from './ui';
 
 const CATEGORY_LABEL: Record<string, string> = {
@@ -130,6 +131,7 @@ export function ProfileScreen() {
         {state.profile.ageYears !== null ? (
           <p className="af-hint">Age on this account: {state.profile.ageYears} years.</p>
         ) : null}
+        <p className="af-hint">{BOOKING_AGE_POLICY}</p>
         <ErrorText error={error} />
         <button className="af-btn" disabled={busy}>
           Save profile

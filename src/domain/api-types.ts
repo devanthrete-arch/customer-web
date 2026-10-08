@@ -1,5 +1,17 @@
 /** Response shapes from autoflex-backend `/v1` (see api-contracts-v1.md). */
 
+export type BookingEligibilityCode =
+  | 'BOOKING_DATE_OF_BIRTH_REQUIRED'
+  | 'BOOKING_DATE_OF_BIRTH_INVALID'
+  | 'BOOKING_MINIMUM_AGE';
+
+export type ApiBookingEligibility = {
+  minimumAge: number;
+} & (
+  | { eligible: true; code: null; message: null }
+  | { eligible: false; code: BookingEligibilityCode; message: string }
+);
+
 export type ApiProfile = {
   id: string;
   displayName: string | null;
@@ -19,6 +31,7 @@ export type ApiProfile = {
   documentReminders: boolean;
   dateOfBirth: string | null;
   ageYears: number | null;
+  bookingEligibility: ApiBookingEligibility;
 };
 
 export type ApiAddress = {

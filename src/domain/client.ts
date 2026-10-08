@@ -29,7 +29,7 @@ const send = <T>(method: 'POST' | 'PUT' | 'PATCH' | 'DELETE', path: string, body
     true,
   );
 
-export type ProfilePatch = Partial<Omit<ApiProfile, 'id' | 'ageYears'>>;
+export type ProfilePatch = Partial<Omit<ApiProfile, 'id' | 'ageYears' | 'bookingEligibility'>>;
 
 export type AddressInput = {
   label: string;

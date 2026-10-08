@@ -1,9 +1,10 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { useDomain } from '../domain/DomainProvider';
-import type { ApiCenterDetail, ApiCenterListItem, ApiOffering, ApiSlotDay } from '../domain/api-types';
+import type { ApiCenterDetail, ApiCenterListItem, ApiOffering, ApiSlotDay, BookingEligibilityCode } from '../domain/api-types';
+import { BookingEligibilityNotice, isBookingEligibilityCode } from '../components/BookingEligibility';
 import { marketplaceApi } from '../domain/client';
-import { errorMessage } from '../lib/api';
+import { ApiError, errorMessage } from '../lib/api';
 import { clearDraft, draftEstimate, getDraft, patchDraft, type BookingDraft } from '../lib/booking';
 import { BENGALURU, formatInr, formatKm, formatSlot, formatWhen } from '../lib/format';
 import { ErrorText, PageHeader, istToday, useAction } from './ui';
@@ -400,8 +401,16 @@ export function BookReviewScreen() {
   const { draft, redirect } = useDraftGuard(['vehicleId', 'centerId', 'slotStart']);
   const { busy, error, run } = useAction();
   const [bookedId, setBookedId] = useState<string | null>(null);
+  const [eligibilityError, setEligibilityError] = useState<BookingEligibilityCode | null>(null);
   if (bookedId) return <Navigate to={`/services/${bookedId}?booked=1`} replace />;
   if (redirect) return <Navigate to={redirect} replace />;
+  if (eligibilityError) {
+    return (
+      <BookingShell step={6} title="Review your booking" back="/services">
+        <BookingEligibilityNotice code={eligibilityError} />
+      </BookingShell>
+    );
+  }
   const offerings = draft.offerings ?? [];
   const startsFrom = offerings.some((item) => item.priceIsStarting) || offerings.length === 0;
 
@@ -433,16 +442,24 @@ export function BookReviewScreen() {
         disabled={busy}
         onClick={() =>
           void run(async () => {
-            const id = await createBooking({
-              serviceCenterId: draft.centerId!,
-              vehicleId: draft.vehicleId!,
-              slotStart: draft.slotStart!,
-              slotEnd: draft.slotEnd!,
-              offeringIds: offerings.map((item) => item.id),
-              issueDescription: draft.issueDescription,
-            });
-            clearDraft();
-            setBookedId(id);
+            try {
+              const id = await createBooking({
+                serviceCenterId: draft.centerId!,
+                vehicleId: draft.vehicleId!,
+                slotStart: draft.slotStart!,
+                slotEnd: draft.slotEnd!,
+                offeringIds: offerings.map((item) => item.id),
+                issueDescription: draft.issueDescription,
+              });
+              clearDraft();
+              setBookedId(id);
+            } catch (err) {
+              if (err instanceof ApiError && isBookingEligibilityCode(err.code)) {
+                setEligibilityError(err.code);
+                return;
+              }
+              throw err;
+            }
           })
         }
       >

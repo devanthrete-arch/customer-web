@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { Navigate, Outlet, Route, Routes, useNavigate } from 'react-router-dom';
 import { AppShell, RequireProfile } from './components/AppShell';
+import { RequireBookingEligibility } from './components/BookingEligibility';
 import {
   AuthOtpScreen,
   AuthRegisterScreen,
@@ -102,12 +103,14 @@ export default function App() {
           <Route path="/vehicles/:id/edit" element={<VehicleEditScreen />} />
           <Route path="/vehicles/:id" element={<VehicleDetailScreen />} />
           <Route path="/services" element={<ServiceListScreen />} />
-          <Route path="/services/book/vehicle" element={<BookVehicleScreen />} />
-          <Route path="/services/book/center" element={<BookCenterScreen />} />
-          <Route path="/services/book/services" element={<BookServicesScreen />} />
-          <Route path="/services/book/issue" element={<BookIssueScreen />} />
-          <Route path="/services/book/schedule" element={<BookScheduleScreen />} />
-          <Route path="/services/book/review" element={<BookReviewScreen />} />
+          <Route element={<RequireBookingEligibility />}>
+            <Route path="/services/book/vehicle" element={<BookVehicleScreen />} />
+            <Route path="/services/book/center" element={<BookCenterScreen />} />
+            <Route path="/services/book/services" element={<BookServicesScreen />} />
+            <Route path="/services/book/issue" element={<BookIssueScreen />} />
+            <Route path="/services/book/schedule" element={<BookScheduleScreen />} />
+            <Route path="/services/book/review" element={<BookReviewScreen />} />
+          </Route>
           <Route path="/services/:id/approval" element={<ApprovalScreen />} />
           <Route path="/services/:id" element={<ServiceDetailScreen />} />
           <Route path="/documents" element={<DocumentsScreen />} />
