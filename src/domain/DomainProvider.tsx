@@ -79,7 +79,8 @@ type DomainContextValue = {
   removeMaintenance(id: string): Promise<void>;
   markNotificationRead(id: string): Promise<void>;
   markAllNotificationsRead(): Promise<void>;
-  createSupportRequest(input: SupportInput): Promise<SupportRequest>;
+  reloadSupport(): Promise<void>;
+  createSupportRequest(input: SupportInput, key?: string): Promise<SupportRequest>;
 };
 
 const DomainContext = createContext<DomainContextValue | null>(null);
@@ -299,17 +300,15 @@ export function DomainProvider({ children }: { children: ReactNode }) {
           unreadCount: 0,
         }));
       },
-      async createSupportRequest(input) {
-        const created = await customerApi.createSupportRequest(input);
-        const [supportRequests, inbox] = await Promise.all([
-          customerApi.supportRequests(),
-          customerApi.notifications(),
-        ]);
-        patch(() => ({
-          supportRequests,
-          notifications: inbox.items.map(toNotification),
-          unreadCount: inbox.unreadCount,
-        }));
+      async reloadSupport() {
+        const supportRequests = await customerApi.supportRequests();
+        patch(() => ({ supportRequests }));
+      },
+      async createSupportRequest(input, key) {
+        const created = await customerApi.createSupportRequest(input, key);
+        patch(current => ({ supportRequests: [created, ...current.supportRequests.filter(row => row.id !== created.id)] }));
+        // Creation is already committed; a failed inbox refresh must not look like a failed send.
+        void customerApi.notifications().then(inbox => patch(() => ({ notifications: inbox.items.map(toNotification), unreadCount: inbox.unreadCount }))).catch(() => undefined);
         return created;
       },
     };

@@ -2915,3 +2915,7 @@ h1,
     height: 200px;
   }
 }
+
+.af-support-fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
+.af-support-message p { white-space: pre-wrap; overflow-wrap: anywhere; }
+.af-support-message small { display: block; color: var(--muted, #667b76); font-size: 12px; }

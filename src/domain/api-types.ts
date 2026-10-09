@@ -276,6 +276,9 @@ export type ApiNotification = {
 
 export type ApiSupportCategory = 'BOOKING' | 'SERVICE' | 'PAYMENT' | 'ACCOUNT' | 'APP' | 'OTHER';
 
+export type ApiSupportEvent = { id: string; version: number; type: string; body: string | null; author: string; createdAt: string };
+export type ApiSupportHistory = { items: ApiSupportEvent[]; nextBeforeVersion: number | null };
+
 export type ApiSupportRequest = {
   id: string;
   referenceNumber: string;
@@ -285,6 +288,10 @@ export type ApiSupportRequest = {
   jobId: string | null;
   bookingId: string | null;
   status: 'OPEN' | 'IN_PROGRESS' | 'RESOLVED' | 'CLOSED';
+  version: number;
+  displayState: 'OPEN' | 'IN_PROGRESS' | 'RESOLVED' | 'CLOSED' | 'AWAITING_YOUR_REPLY';
+  resolutionSummary: string | null; closureSummary: string | null; legacyResolutionUnknown: boolean;
+  resolvedAt: string | null; closedAt: string | null; lastActivityAt: string;
   createdAt: string;
 };
 

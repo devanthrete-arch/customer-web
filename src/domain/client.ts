@@ -17,6 +17,7 @@ import type {
   ApiSlotDay,
   ApiSupportCategory,
   ApiSupportRequest,
+  ApiSupportHistory,
   ApiVaultCategory,
   ApiVaultDocument,
 } from './api-types';
@@ -160,8 +161,11 @@ export const customerApi = {
   readAllNotifications: () => send<{ updated: number }>('POST', '/v1/me/notifications/read-all'),
 
   supportRequests: () => get<ApiSupportRequest[]>('/v1/me/support-requests'),
-  createSupportRequest: (input: SupportInput) =>
-    send<ApiSupportRequest>('POST', '/v1/me/support-requests', input),
+  supportRequest: (id: string) => get<ApiSupportRequest>(`/v1/me/support-requests/${id}`),
+  supportHistory: (id: string, beforeVersion?: number) => get<ApiSupportHistory>(`/v1/me/support-requests/${id}/events${beforeVersion ? `?beforeVersion=${beforeVersion}` : ''}`),
+  replySupport: (id: string, message: string, version: number, key: string) => autoflex<{requestId: string; version: number; status: ApiSupportRequest['status']; eventId: string}>(`/v1/me/support-requests/${id}/replies`, { method: 'POST', body: JSON.stringify({message}), headers: { 'If-Match': String(version), 'Idempotency-Key': key } }, true),
+  createSupportRequest: (input: SupportInput, key?: string) =>
+    autoflex<ApiSupportRequest>('/v1/me/support-requests', { method: 'POST', body: JSON.stringify(input), headers: key ? { 'Idempotency-Key': key } : {} }, true),
 };
 
 export const marketplaceApi = {

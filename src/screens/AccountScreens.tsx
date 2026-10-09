@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useDomain } from '../domain/DomainProvider';
 import type { ApiProfile, ApiSupportCategory } from '../domain/api-types';
@@ -6,6 +6,7 @@ import type { AddressInput, SupportInput } from '../domain/client';
 import { formatDate } from '../domain/model';
 import { digitsOnly, formatWhen, localPhone } from '../lib/format';
 import { signOut } from '../lib/session';
+import { ApiError } from '../lib/api';
 import { BOOKING_AGE_POLICY } from '../lib/booking-policy';
 import { Empty, ErrorText, PageHeader, StatusPill, useAction } from './ui';
 
@@ -407,7 +408,17 @@ const SUPPORT_STATUS: Record<string, string> = {
 };
 
 export function SupportScreen() {
-  const { state, createSupportRequest } = useDomain();
+  const { state, createSupportRequest, reloadSupport } = useDomain();
+  const refreshRef = useRef(reloadSupport); refreshRef.current = reloadSupport;
+  const [refreshError, setRefreshError] = useState('');
+  useEffect(() => {
+    const refresh = () => { if (document.visibilityState === 'visible') void refreshRef.current().then(() => setRefreshError('')).catch(() => setRefreshError('Could not refresh requests. Try again.')); };
+    refresh(); const timer = window.setInterval(refresh, 30_000); window.addEventListener('focus', refresh);
+    return () => { window.clearInterval(timer); window.removeEventListener('focus', refresh); };
+  }, []);
+  const pendingCreate = useRef<{ input: SupportInput; key: string } | null>(null);
+  const [uncertain, setUncertain] = useState(false);
+  const [sentId, setSentId] = useState('');
   const [params] = useSearchParams();
   const linked = params.get('jobId') ?? params.get('bookingId') ?? '';
   const [form, setForm] = useState({
@@ -424,13 +435,19 @@ export function SupportScreen() {
     event.preventDefault();
     const service = state.services.find((item) => item.id === form.serviceId || item.bookingId === form.serviceId);
     void run(async () => {
-      const created = await createSupportRequest({
+      const input: SupportInput = {
         category: form.category,
         subject: form.subject.trim(),
         message: form.message.trim(),
         preferredChannel: form.preferredChannel,
         ...(service?.jobId ? { jobId: service.jobId } : service?.bookingId ? { bookingId: service.bookingId } : {}),
-      });
+      };
+      const attempt = pendingCreate.current ?? { input, key: crypto.randomUUID() };
+      pendingCreate.current = attempt;
+      let created;
+      try { created = await createSupportRequest(attempt.input, attempt.key); }
+      catch (err) { const unknown = !(err instanceof ApiError) || err.status === 0 || err.status >= 500; setUncertain(unknown); if (!unknown) pendingCreate.current = null; throw err; }
+      pendingCreate.current = null; setUncertain(false); setSentId(created.id);
       setSent(created.referenceNumber);
       setForm({ ...form, subject: '', message: '' });
     });
@@ -449,16 +466,17 @@ export function SupportScreen() {
             </details>
           ))}
           <h2>Your requests</h2>
+          {refreshError ? <p className="af-error" role="alert">{refreshError} <button onClick={() => void refreshRef.current().then(() => setRefreshError('')).catch(() => setRefreshError('Could not refresh requests. Try again.'))}>Retry</button></p> : null}
           {state.supportRequests.length === 0 ? <p className="af-sub">No requests yet.</p> : null}
           {state.supportRequests.map((request) => (
             <article className="af-panel" key={request.id}>
               <div className="af-card-line">
                 <span className="af-kicker">{request.referenceNumber}</span>
                 <StatusPill tone={request.status === 'RESOLVED' || request.status === 'CLOSED' ? 'green' : 'blue'}>
-                  {SUPPORT_STATUS[request.status]}
+                  {request.displayState === 'AWAITING_YOUR_REPLY' ? 'Awaiting your reply' : SUPPORT_STATUS[request.status]}
                 </StatusPill>
               </div>
-              <h3>{request.subject}</h3>
+              <h3><Link to={`/support/${request.id}`}>{request.subject}</Link></h3>
               <p className="af-meta">{formatDate(request.createdAt)}</p>
             </article>
           ))}
@@ -467,10 +485,11 @@ export function SupportScreen() {
           <h2>Contact us</h2>
           {sent ? (
             <div className="af-success-banner">
-              Request {sent} received. We’ll get back to you on {form.preferredChannel === 'CALL' ? 'a call' : form.preferredChannel === 'EMAIL' ? 'email' : 'WhatsApp'}.
+              Request {sent} saved. <Link to={`/support/${sentId}`}>Read replies in Help & Support.</Link>
             </div>
           ) : null}
           <form onSubmit={submit}>
+            <fieldset disabled={busy || uncertain} className="af-support-fieldset">
             <label className="af-field">
               It’s about
               <select value={form.category} onChange={(event) => setForm({ ...form, category: event.target.value as ApiSupportCategory })}>
@@ -520,9 +539,11 @@ export function SupportScreen() {
                 <option value="EMAIL">Email</option>
               </select>
             </label>
+            </fieldset>
+            {uncertain ? <p className="af-sub">The result could not be confirmed. Retry the same request to avoid sending it twice.</p> : null}
             <ErrorText error={error} />
             <button className="af-btn" disabled={busy}>
-              Send request
+              {uncertain ? 'Retry same request' : 'Send request'}
             </button>
           </form>
         </aside>

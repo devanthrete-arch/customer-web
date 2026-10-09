@@ -1,3 +1,4 @@
+import { SupportDetailScreen } from './screens/SupportDetailScreen';
 import { useEffect } from 'react';
 import { Navigate, Outlet, Route, Routes, useNavigate } from 'react-router-dom';
 import { AppShell, RequireProfile } from './components/AppShell';
@@ -125,6 +126,7 @@ export default function App() {
           <Route path="/payments/:id" element={<PaymentDetailScreen />} />
           <Route path="/notifications" element={<NotificationsScreen />} />
           <Route path="/support" element={<SupportScreen />} />
+          <Route path="/support/:id" element={<SupportDetailScreen />} />
           <Route path="/profile" element={<ProfileScreen />} />
           <Route path="/profile/addresses" element={<AddressesScreen />} />
           <Route path="/profile/preferences" element={<PreferencesScreen />} />

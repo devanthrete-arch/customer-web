@@ -146,6 +146,9 @@ export function toInvoice(row: ApiInvoice): Invoice {
 
 /** Old in-app links point at bookings and support threads that live elsewhere here. */
 export function notificationTarget(row: ApiNotification): string {
+  const supportHref = row.href ?? '';
+  if (/^\/support\/[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(supportHref)) return supportHref;
+  if (supportHref === '/support') return '/support';
   if (row.jobId) return `/services/${row.jobId}`;
   if (row.bookingId) return `/services/${row.bookingId}`;
   const href = row.href ?? '';
