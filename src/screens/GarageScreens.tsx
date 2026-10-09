@@ -1,7 +1,9 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { BodyMark, FuelMark } from '../components/VehicleMarks';
 import { useDomain } from '../domain/DomainProvider';
-import type { VehicleInput } from '../domain/client';
+import { customerApi, type VehicleInput } from '../domain/client';
+import type { ApiCatalogConfiguration, ApiVehicleCatalog } from '../domain/api-types';
 import {
   expiryLabel,
   formatDate,
@@ -70,6 +72,9 @@ export function VehicleListScreen() {
 
 type VehicleForm = {
   vehicleType: VehicleInput['vehicleType'];
+  catalogConfigurationId: string;
+  makeId: string;
+  modelId: string;
   registrationNumber: string;
   make: string;
   model: string;
@@ -84,13 +89,16 @@ type VehicleForm = {
 
 const emptyForm: VehicleForm = {
   vehicleType: 'FOUR_WHEELER',
+  catalogConfigurationId: '',
+  makeId: '',
+  modelId: '',
   registrationNumber: '',
   make: '',
   model: '',
   variant: '',
   year: '',
   fuel: 'Petrol',
-  transmission: 'Manual',
+  transmission: '',
   color: '',
   odometer: '',
   purchaseDate: '',
@@ -99,6 +107,9 @@ const emptyForm: VehicleForm = {
 function toForm(vehicle: Vehicle): VehicleForm {
   return {
     vehicleType: vehicle.vehicleType,
+    catalogConfigurationId: vehicle.catalogConfigurationId ?? '',
+    makeId: '',
+    modelId: '',
     registrationNumber: vehicle.registrationNumber,
     make: vehicle.make,
     model: vehicle.model,
@@ -114,29 +125,153 @@ function toForm(vehicle: Vehicle): VehicleForm {
 
 function toInput(form: VehicleForm): VehicleInput {
   const optional = (value: string) => value.trim() || undefined;
-  return {
+  const shared = {
     vehicleType: form.vehicleType,
     registrationNumber: form.registrationNumber.replace(/\s+/g, '').toUpperCase(),
-    make: form.make.trim(),
-    model: form.model.trim(),
-    variant: optional(form.variant),
     year: form.year ? Number(form.year) : undefined,
-    fuel: optional(form.fuel),
-    transmission: form.vehicleType === 'TWO_WHEELER' ? undefined : optional(form.transmission),
     color: optional(form.color),
     currentOdometerKm: form.odometer ? Number(form.odometer) : undefined,
     purchaseDate: optional(form.purchaseDate),
   };
+  if (form.vehicleType === 'FOUR_WHEELER' && form.catalogConfigurationId) {
+    return {
+      ...shared,
+      catalogConfigurationId: form.catalogConfigurationId,
+      make: form.make,
+      model: form.model,
+      variant: optional(form.variant),
+      fuel: optional(form.fuel),
+      transmission: optional(form.transmission),
+    };
+  }
+  return {
+    ...shared,
+    make: form.make.trim(),
+    model: form.model.trim(),
+    variant: optional(form.variant),
+    fuel: optional(form.fuel),
+    transmission: form.vehicleType === 'FOUR_WHEELER' ? optional(form.transmission) : undefined,
+  };
 }
 
-function VehicleFields({ form, setForm }: { form: VehicleForm; setForm: (form: VehicleForm) => void }) {
+function VehicleFields({
+  form,
+  setForm,
+  useCatalog,
+}: {
+  form: VehicleForm;
+  setForm: (form: VehicleForm) => void;
+  useCatalog: boolean;
+}) {
+  const [catalog, setCatalog] = useState<ApiVehicleCatalog | null>(null);
+  const [catalogError, setCatalogError] = useState('');
   const set = (key: keyof VehicleForm) => (event: { target: { value: string } }) =>
     setForm({ ...form, [key]: event.target.value });
+
+  useEffect(() => {
+    let cancelled = false;
+    customerApi.vehicleCatalog().then(
+      (tree) => {
+        if (!cancelled) setCatalog(tree);
+      },
+      () => {
+        if (!cancelled) setCatalogError('The car list could not be loaded.');
+      },
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!catalog || !form.catalogConfigurationId || form.makeId) return;
+    for (const make of catalog.makes) {
+      for (const model of make.models) {
+        const match = model.configurations.find((item) => item.id === form.catalogConfigurationId);
+        if (!match) continue;
+        setForm({
+          ...form,
+          makeId: make.id,
+          modelId: model.id,
+          make: make.name,
+          model: model.name,
+          variant: match.variant,
+          fuel: match.fuel,
+          transmission: match.gearboxCode,
+        });
+        return;
+      }
+    }
+  }, [catalog, form, setForm]);
+
+  const selectedMake = catalog?.makes.find((make) => make.id === form.makeId);
+  const selectedModel = selectedMake?.models.find((model) => model.id === form.modelId);
+  const selectedConfiguration = selectedModel?.configurations.find(
+    (configuration) => configuration.id === form.catalogConfigurationId,
+  );
+  const colourOptions = selectedConfiguration?.colours ?? [];
+
+  function chooseMake(makeId: string) {
+    setForm({
+      ...form,
+      makeId,
+      modelId: '',
+      catalogConfigurationId: '',
+      make: '',
+      model: '',
+      variant: '',
+      fuel: '',
+      transmission: '',
+    });
+  }
+
+  function chooseModel(modelId: string) {
+    setForm({
+      ...form,
+      modelId,
+      catalogConfigurationId: '',
+      model: '',
+      variant: '',
+      fuel: '',
+      transmission: '',
+    });
+  }
+
+  function chooseConfiguration(configuration: ApiCatalogConfiguration, makeName: string, modelName: string) {
+    const colours = configuration.colours ?? [];
+    setForm({
+      ...form,
+      catalogConfigurationId: configuration.id,
+      make: makeName,
+      model: modelName,
+      variant: configuration.variant,
+      fuel: configuration.fuel,
+      transmission: configuration.gearboxCode,
+      color: colours.includes(form.color) ? form.color : '',
+    });
+  }
+
   return (
     <div className="af-form-grid">
       <label className="af-field">
         Vehicle type
-        <select value={form.vehicleType} onChange={set('vehicleType')}>
+        <select
+          value={form.vehicleType}
+          onChange={(event) =>
+            setForm({
+              ...form,
+              vehicleType: event.target.value as VehicleForm['vehicleType'],
+              catalogConfigurationId: '',
+              makeId: '',
+              modelId: '',
+              make: '',
+              model: '',
+              variant: '',
+              fuel: event.target.value === 'TWO_WHEELER' ? 'Petrol' : '',
+              transmission: '',
+            })
+          }
+        >
           <option value="FOUR_WHEELER">Car</option>
           <option value="TWO_WHEELER">Two-wheeler</option>
         </select>
@@ -150,48 +285,113 @@ function VehicleFields({ form, setForm }: { form: VehicleForm; setForm: (form: V
           placeholder="KA05AB1234"
         />
       </label>
-      <label className="af-field">
-        Make
-        <input required value={form.make} onChange={set('make')} placeholder="Hyundai" />
-      </label>
-      <label className="af-field">
-        Model
-        <input required value={form.model} onChange={set('model')} placeholder="i20" />
-      </label>
-      <label className="af-field">
-        Variant
-        <input value={form.variant} onChange={set('variant')} placeholder="Asta" />
-      </label>
+      {form.vehicleType === 'FOUR_WHEELER' && useCatalog ? (
+        <>
+          <label className="af-field">
+            Make
+            <select required value={form.makeId} onChange={(event) => chooseMake(event.target.value)}>
+              <option value="">Choose a make</option>
+              {catalog?.makes.map((make) => (
+                <option key={make.id} value={make.id}>{make.name}</option>
+              ))}
+            </select>
+          </label>
+          {catalogError ? <p className="af-error">{catalogError}</p> : null}
+          {selectedMake ? (
+            <div className="af-field">
+              Model
+              <div className="af-choice-grid">
+                {selectedMake.models.map((model) => (
+                  <button
+                    key={model.id}
+                    className={model.id === form.modelId ? 'af-catalog-choice on' : 'af-catalog-choice'}
+                    type="button"
+                    onClick={() => chooseModel(model.id)}
+                  >
+                    <BodyMark style={model.bodyStyle} />
+                    <span>{model.name}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : null}
+          {selectedModel ? (
+            <div className="af-field">
+              Variant
+              <div className="af-choice-grid">
+                {selectedModel.configurations.map((configuration) => (
+                  <button
+                    key={configuration.id}
+                    className={configuration.id === form.catalogConfigurationId ? 'af-catalog-choice on' : 'af-catalog-choice'}
+                    type="button"
+                    onClick={() => chooseConfiguration(configuration, selectedMake?.name ?? '', selectedModel.name)}
+                  >
+                    <FuelMark fuel={configuration.fuel} />
+                    <span>
+                      {configuration.variant}
+                      <small>{configuration.fuel} · {configuration.gearboxCode}</small>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : null}
+        </>
+      ) : (
+        <>
+          <label className="af-field">
+            Make
+            <input required value={form.make} onChange={set('make')} placeholder="Honda" />
+          </label>
+          <label className="af-field">
+            Model
+            <input required value={form.model} onChange={set('model')} placeholder="Activa" />
+          </label>
+          <label className="af-field">
+            Variant
+            <input value={form.variant} onChange={set('variant')} />
+          </label>
+          <label className="af-field">
+            Fuel
+            <select value={form.fuel} onChange={set('fuel')}>
+              <option>Petrol</option>
+              <option>Diesel</option>
+              <option>CNG</option>
+              <option>Electric</option>
+              <option>Hybrid</option>
+            </select>
+          </label>
+          {form.vehicleType === 'FOUR_WHEELER' ? (
+            <label className="af-field">
+              Gearbox
+              <input value={form.transmission} onChange={set('transmission')} placeholder="5MT" />
+            </label>
+          ) : null}
+        </>
+      )}
       <label className="af-field">
         Year
         <input inputMode="numeric" value={form.year} onChange={set('year')} placeholder="2022" />
       </label>
-      <label className="af-field">
-        Fuel
-        <select value={form.fuel} onChange={set('fuel')}>
-          <option>Petrol</option>
-          <option>Diesel</option>
-          <option>CNG</option>
-          <option>Electric</option>
-          <option>Hybrid</option>
-        </select>
-      </label>
-      {form.vehicleType === 'FOUR_WHEELER' ? (
-        <label className="af-field">
-          Transmission
-          <select value={form.transmission} onChange={set('transmission')}>
-            <option>Manual</option>
-            <option>Automatic</option>
-          </select>
-        </label>
-      ) : null}
       <label className="af-field">
         Odometer (km)
         <input inputMode="numeric" value={form.odometer} onChange={set('odometer')} placeholder="12000" />
       </label>
       <label className="af-field">
         Colour
-        <input value={form.color} onChange={set('color')} />
+        {form.vehicleType === 'FOUR_WHEELER' && colourOptions.length > 0 ? (
+          <select value={form.color} onChange={set('color')}>
+            <option value="">Choose a colour</option>
+            {form.color && !colourOptions.includes(form.color) ? (
+              <option value={form.color}>{form.color}</option>
+            ) : null}
+            {colourOptions.map((name) => (
+              <option key={name} value={name}>{name}</option>
+            ))}
+          </select>
+        ) : (
+          <input value={form.color} onChange={set('color')} />
+        )}
       </label>
       <label className="af-field">
         Purchase date
@@ -210,6 +410,9 @@ export function VehicleAddScreen() {
   function save(event: FormEvent) {
     event.preventDefault();
     void run(async () => {
+      if (form.vehicleType === 'FOUR_WHEELER' && !form.catalogConfigurationId) {
+        throw new Error('Choose the make, model, and variant.');
+      }
       const vehicle = await addVehicle(toInput(form));
       navigate(`/vehicles/${vehicle.id}?added=1`, { replace: true });
     });
@@ -219,7 +422,7 @@ export function VehicleAddScreen() {
     <section className="af-screen af-form">
       <PageHeader title="Add vehicle" back="/vehicles" />
       <form onSubmit={save}>
-        <VehicleFields form={form} setForm={setForm} />
+        <VehicleFields form={form} setForm={setForm} useCatalog={form.vehicleType === 'FOUR_WHEELER'} />
         <ErrorText error={error} />
         <button className="af-btn" type="submit" disabled={busy}>
           {busy ? 'Saving…' : 'Save vehicle'}
@@ -252,7 +455,11 @@ export function VehicleEditScreen() {
     <section className="af-screen af-form">
       <PageHeader title="Edit vehicle" back={`/vehicles/${vehicle.id}`} />
       <form onSubmit={save}>
-        <VehicleFields form={form} setForm={setForm} />
+        <VehicleFields
+          form={form}
+          setForm={setForm}
+          useCatalog={Boolean(vehicle.catalogConfigurationId)}
+        />
         <ErrorText error={error} />
         <button className="af-btn" type="submit" disabled={busy}>
           {busy ? 'Saving…' : 'Save changes'}

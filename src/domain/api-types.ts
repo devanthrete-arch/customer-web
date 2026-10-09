@@ -47,9 +47,34 @@ export type ApiAddress = {
   isDefault: boolean;
 };
 
+export type ApiCatalogConfiguration = {
+  id: string;
+  variant: string;
+  fuel: string;
+  gearboxCode: string;
+  transmissionKind: 'manual' | 'automatic';
+  engineName: string | null;
+  displacementCc: number | null;
+  colours: string[];
+};
+
+export type ApiVehicleCatalog = {
+  makes: Array<{
+    id: string;
+    name: string;
+    models: Array<{
+      id: string;
+      name: string;
+      bodyStyle: string;
+      configurations: ApiCatalogConfiguration[];
+    }>;
+  }>;
+};
+
 export type ApiGarageVehicle = {
   id: string;
   vehicleType: 'TWO_WHEELER' | 'FOUR_WHEELER';
+  catalogConfigurationId: string | null;
   make: string;
   model: string;
   variant: string | null;

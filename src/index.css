@@ -2110,6 +2110,26 @@ a {
   color: var(--af-accent);
 }
 
+.af-catalog-choice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+}
+
+.af-catalog-choice span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.af-catalog-choice small {
+  font-weight: 500;
+  color: var(--af-muted);
+}
+
 .af-booking-content {
   display: flex;
   flex-direction: column;

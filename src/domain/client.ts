@@ -8,6 +8,7 @@ import type {
   ApiCustomerJob,
   ApiCustomerJobSummary,
   ApiGarageVehicle,
+  ApiVehicleCatalog,
   ApiInvoice,
   ApiMaintenanceItem,
   ApiNotification,
@@ -45,8 +46,9 @@ export type AddressInput = {
 
 export type VehicleInput = {
   vehicleType: ApiGarageVehicle['vehicleType'];
-  make: string;
-  model: string;
+  catalogConfigurationId?: string;
+  make?: string;
+  model?: string;
   variant?: string;
   year?: number;
   registrationNumber: string;
@@ -113,6 +115,7 @@ export const customerApi = {
     send<ApiAddress>('PATCH', `/v1/me/addresses/${id}`, patch),
   removeAddress: (id: string) => send<void>('DELETE', `/v1/me/addresses/${id}`),
 
+  vehicleCatalog: () => get<ApiVehicleCatalog>('/v1/vehicle-catalog'),
   vehicles: () => get<ApiGarageVehicle[]>('/v1/me/vehicles?status=all'),
   addVehicle: (input: VehicleInput) => send<ApiGarageVehicle>('POST', '/v1/me/vehicles', input),
   updateVehicle: (id: string, patch: Partial<VehicleInput>) =>
