@@ -5,22 +5,27 @@ const API_URL = import.meta.env.VITE_AUTOFLEX_API_URL || 'http://localhost:3001'
 export class ApiError extends Error {
   status: number;
   code?: string;
-  constructor(status: number, message: string, code?: string) {
+  retryAfterMs?: number;
+  constructor(status: number, message: string, code?: string, retryAfterMs?: number) {
     super(message);
     this.status = status;
     this.code = code;
+    this.retryAfterMs = retryAfterMs;
   }
 }
 
 async function parseError(res: Response): Promise<ApiError> {
+  const retry = res.headers.get('Retry-After');
+  const delay = retry ? (/^\d+$/.test(retry) ? Number(retry) * 1000 : Date.parse(retry) - Date.now()) : NaN;
+  const retryAfterMs = Number.isFinite(delay) && delay >= 0 ? delay : undefined;
   try {
     const body = (await res.json()) as { message?: string | string[]; code?: string };
     const message = Array.isArray(body.message) ? body.message.join(', ') : body.message;
-    if (message) return new ApiError(res.status, message, body.code);
+    if (message) return new ApiError(res.status, message, body.code, retryAfterMs);
   } catch {
     /* ignore */
   }
-  return new ApiError(res.status, res.statusText || 'Request failed');
+  return new ApiError(res.status, res.statusText || 'Request failed', undefined, retryAfterMs);
 }
 
 export async function autoflex<T>(

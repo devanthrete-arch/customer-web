@@ -33,6 +33,12 @@ The app reads live Autoflex data. Bookings and jobs appear as one service list. 
 | `VITE_IAM_API_KEY` | CustApp DomainApplication public API key (`X-API-Key`) |
 | `VITE_IAM_CUSTOMER_DOMAIN_APPLICATION_ID` | CustApp `domainApplicationId` (must match Autoflex `IAM_CUSTOMER_DOMAIN_APPLICATION_ID`) |
 
+## Public job timeline (AF-001)
+
+Open `/t/<publicToken>` using a job token from an authorized staff response. The route is anonymous and outside account/profile/booking-age guards. It shows limited recorded status history, masked registration, ETA and safe public center contact. Approval and payment details remain in the authenticated account. Unknown/replaced links clear the snapshot; temporary errors keep it with a stale notice. No migration is required.
+
+[Setup, behavior, verification and production launch gates](../development-documents/architecture/public-job-timeline-runbook.md). The host must support deep-link fallback and tracking-specific headers; shared rate limiting and token-redacted logging are production follow-ups.
+
 ## Existing auth integration
 
 India `+91` OTP. Forgot password is not part of this app.

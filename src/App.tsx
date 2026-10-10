@@ -1,6 +1,8 @@
 import { SupportDetailScreen } from './screens/SupportDetailScreen';
 import { useEffect } from 'react';
-import { Navigate, Outlet, Route, Routes, useNavigate } from 'react-router-dom';
+import { Navigate, Outlet, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
+import { PublicTrackingScreen } from './screens/PublicTrackingScreen';
+import { isTrackingPath } from './lib/public-tracking';
 import { AppShell, RequireProfile } from './components/AppShell';
 import { RequireBookingEligibility } from './components/BookingEligibility';
 import {
@@ -67,14 +69,20 @@ function FrontDoor() {
 
 export default function App() {
   const navigate = useNavigate();
+  const { pathname } = useLocation();
   useEffect(() => {
-    const onSignedOut = () => navigate('/', { replace: true });
+    const onSignedOut = () => {
+      if (!isTrackingPath(pathname)) navigate('/', { replace: true });
+    };
     window.addEventListener(SIGNED_OUT_EVENT, onSignedOut);
     return () => window.removeEventListener(SIGNED_OUT_EVENT, onSignedOut);
-  }, [navigate]);
+  }, [navigate, pathname]);
 
   return (
     <Routes>
+      <Route path="/t/:token" element={<PublicTrackingScreen />} />
+      <Route path="/t" element={<PublicTrackingScreen />} />
+      <Route path="/t/*" element={<PublicTrackingScreen />} />
       <Route path="/" element={<FrontDoor />} />
       <Route path="/landing" element={<Navigate to="/" replace />} />
       <Route element={<PhoneFrame />}>

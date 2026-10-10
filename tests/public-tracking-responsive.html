@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="referrer" content="no-referrer" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>AF-001 responsive verification</title>
+    <style>
+      body {
+        font: 14px system-ui;
+        background: #ede7de;
+        color: #1c1915;
+        margin: 20px;
+      }
+      main {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 20px;
+        align-items: start;
+      }
+      iframe {
+        height: 1000px;
+        border: 1px solid #d0c4b6;
+        background: white;
+      }
+      h2 {
+        font-size: 16px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>AF-001 · Responsive verification</h1>
+    <p>Actual public route at phone, tablet and desktop widths.</p>
+    <main>
+      <section>
+        <h2>Phone · 360px</h2>
+        <iframe title="Public tracking at phone width" width="360"></iframe>
+      </section>
+      <section>
+        <h2>Tablet · 700px</h2>
+        <iframe title="Public tracking at tablet width" width="700"></iframe>
+      </section>
+      <section>
+        <h2>Desktop · 1280px</h2>
+        <iframe title="Public tracking at desktop width" width="1280"></iframe>
+      </section>
+    </main>
+    <script>
+      const token = new URLSearchParams(location.search).get('token');
+      if (token && /^[A-Za-z0-9_-]{1,128}$/.test(token)) {
+        for (const frame of document.querySelectorAll('iframe'))
+          frame.src = '/t/' + encodeURIComponent(token);
+      } else
+        document.querySelector('p').textContent = 'Supply a disposable local token with ?token=…';
+    </script>
+  </body>
+</html>
