@@ -1,11 +1,8 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
-import { Navigate, useNavigate } from 'react-router-dom';
+import { Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { useDiscoveryLocation } from '../location/DiscoveryLocation';
 import { AuthSplit } from '../components/AuthSplit';
-import {
-  autoflex,
-  profileComplete,
-  type Profile,
-} from '../lib/api';
+import { autoflex, profileComplete, type Profile } from '../lib/api';
 import { digitsOnly, localPhone } from '../lib/format';
 import { BOOKING_AGE_POLICY } from '../lib/booking-policy';
 import {
@@ -13,30 +10,31 @@ import {
   getAccessToken,
   getPendingAuth,
   peekPendingDisplayName,
+  rememberAuthReturnTo,
+  takeAuthReturnTo,
 } from '../lib/session';
 
 function ProfileForm({
   initialName,
   initialPhone,
-  initialCity,
   initialDateOfBirth,
   submitLabel,
   onDone,
 }: {
   initialName: string;
   initialPhone: string;
-  initialCity: string;
   initialDateOfBirth: string;
   submitLabel: string;
-  onDone: () => void;
+  onDone: () => void | Promise<void>;
 }) {
   const [name, setName] = useState(initialName);
   const [phone, setPhone] = useState(initialPhone);
-  const [city, setCity] = useState(initialCity);
   const [dateOfBirth, setDateOfBirth] = useState(initialDateOfBirth);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
-  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+  const today = new Date().toLocaleDateString('en-CA', {
+    timeZone: 'Asia/Kolkata',
+  });
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -47,10 +45,6 @@ function ProfileForm({
     }
     if (phone.length < 10) {
       setError('Enter a 10-digit Indian mobile number.');
-      return;
-    }
-    if (city.trim().length < 2) {
-      setError('Enter your city.');
       return;
     }
     if (!dateOfBirth) {
@@ -66,7 +60,6 @@ function ProfileForm({
           body: JSON.stringify({
             displayName: name.trim(),
             phone,
-            selectedPlaceLabel: city.trim(),
             dateOfBirth,
             locale: 'en-IN',
           }),
@@ -74,7 +67,7 @@ function ProfileForm({
         true,
       );
       clearPendingDisplayName();
-      onDone();
+      await onDone();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not save profile');
     } finally {
@@ -86,7 +79,11 @@ function ProfileForm({
     <form onSubmit={onSubmit}>
       <label className="af-field">
         Full name
-        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Priya Sharma" />
+        <input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="Priya Sharma"
+        />
       </label>
       <label className="af-field">
         Mobile
@@ -101,10 +98,6 @@ function ProfileForm({
         </div>
       </label>
       <label className="af-field">
-        City
-        <input value={city} onChange={(e) => setCity(e.target.value)} placeholder="Bengaluru" />
-      </label>
-      <label className="af-field">
         Date of birth
         <input
           type="date"
@@ -115,7 +108,10 @@ function ProfileForm({
           onChange={(e) => setDateOfBirth(e.target.value)}
         />
       </label>
-      <p className="af-hint">We use your date of birth to check booking eligibility. {BOOKING_AGE_POLICY}</p>
+      <p className="af-hint">
+        We use your date of birth to check booking eligibility.{' '}
+        {BOOKING_AGE_POLICY}
+      </p>
       {error ? <p className="af-error">{error}</p> : null}
       <button className="af-btn" type="submit" disabled={busy}>
         {submitLabel}
@@ -126,6 +122,7 @@ function ProfileForm({
 
 export function ProfileSetupScreen() {
   const navigate = useNavigate();
+  const { refreshProfile } = useDiscoveryLocation();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [ready, setReady] = useState(false);
 
@@ -135,7 +132,7 @@ export function ProfileSetupScreen() {
       .then((me) => {
         if (cancelled) return;
         if (profileComplete(me)) {
-          navigate('/home', { replace: true });
+          navigate(takeAuthReturnTo(), { replace: true });
           return;
         }
         setProfile(me);
@@ -159,23 +156,37 @@ export function ProfileSetupScreen() {
 
   return (
     <AuthSplit>
-    <section className="af-screen af-form" data-screen="AUTH-07">
-      <h1 className="af-title">Your profile</h1>
-      <p className="af-sub">We need your name, mobile number, city, and date of birth before the dashboard.</p>
-      <ProfileForm
-        initialName={profile?.displayName ?? peekPendingDisplayName()}
-        initialPhone={localPhone(profile?.phone) || getPendingAuth()?.mobile || ''}
-        initialCity={profile?.selectedPlaceLabel ?? ''}
-        initialDateOfBirth={profile?.dateOfBirth ?? ''}
-        submitLabel="Continue"
-        onDone={() => navigate('/home', { replace: true })}
-      />
-    </section>
+      <section className="af-screen af-form" data-screen="AUTH-07">
+        <h1 className="af-title">Your profile</h1>
+        <p className="af-sub">
+          We need your name, mobile number, and date of birth. Your service
+          location is chosen separately.
+        </p>
+        <ProfileForm
+          initialName={profile?.displayName ?? peekPendingDisplayName()}
+          initialPhone={
+            localPhone(profile?.phone) || getPendingAuth()?.mobile || ''
+          }
+          initialDateOfBirth={profile?.dateOfBirth ?? ''}
+          submitLabel="Continue"
+          onDone={async () => {
+            await refreshProfile();
+            navigate(takeAuthReturnTo(), { replace: true });
+          }}
+        />
+      </section>
     </AuthSplit>
   );
 }
 
 export function RequireToken({ children }: { children: ReactNode }) {
+  const location = useLocation();
+  useEffect(() => {
+    if (!getAccessToken())
+      rememberAuthReturnTo(
+        `${location.pathname}${location.search}${location.hash}`,
+      );
+  }, [location.pathname, location.search, location.hash]);
   if (!getAccessToken()) return <Navigate to="/auth/sign-in" replace />;
   return children;
 }

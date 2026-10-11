@@ -306,6 +306,13 @@ export type ApiSupportRequest = {
 export type ApiCenterListItem = {
   id: string;
   displayName: string;
+  heroImageUrl?: string | null;
+  logoUrl?: string | null;
+  photoUrls?: string[];
+  googleMapsUrl?: string | null;
+  postalCode?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
   distanceMeters: number;
   formattedAddress: string | null;
   ratingAvg: number | null;

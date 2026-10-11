@@ -1,4 +1,4 @@
-import { getAccessToken, signOut } from './session';
+import { getAccessToken, signOut, takeAuthReturnTo } from './session';
 
 const API_URL = import.meta.env.VITE_AUTOFLEX_API_URL || 'http://localhost:3001';
 
@@ -64,6 +64,11 @@ export type Profile = {
   displayName: string | null;
   phone: string | null;
   selectedPlaceLabel: string | null;
+  city?: string | null;
+  state?: string | null;
+  postalCode?: string | null;
+  lastLat?: number | null;
+  lastLng?: number | null;
   dateOfBirth: string | null;
 };
 
@@ -71,7 +76,6 @@ export function profileComplete(profile: Profile | null | undefined): boolean {
   return Boolean(
     profile?.displayName?.trim() &&
       profile.phone?.trim() &&
-      profile.selectedPlaceLabel?.trim() &&
       profile.dateOfBirth,
   );
 }
@@ -79,7 +83,7 @@ export function profileComplete(profile: Profile | null | undefined): boolean {
 export async function destinationAfterAuth(): Promise<string> {
   try {
     const profile = await autoflex<Profile>('/v1/me/profile', {}, true);
-    return profileComplete(profile) ? '/home' : '/profile/setup';
+    return profileComplete(profile) ? takeAuthReturnTo() : '/profile/setup';
   } catch (err) {
     if (err instanceof ApiError && err.status === 404) return '/profile/setup';
     throw err;

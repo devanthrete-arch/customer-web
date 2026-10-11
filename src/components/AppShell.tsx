@@ -1,25 +1,38 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { Link, NavLink, Navigate, Outlet, useNavigate } from 'react-router-dom';
-import { useDomain } from '../domain/DomainProvider';
+import {
+  Link,
+  NavLink,
+  Navigate,
+  Outlet,
+  useLocation,
+  useNavigate,
+} from 'react-router-dom';
 import { ApiError, autoflex, profileComplete, type Profile } from '../lib/api';
-import { getAccessToken } from '../lib/session';
+import { getAccessToken, rememberAuthReturnTo } from '../lib/session';
+import { LocationToolbar } from '../location/DiscoveryLocation';
 import { Icon, type IconName } from './Icons';
 import { LogoMark } from './LogoLockup';
 
-const SIDE_NAV: { to: string; label: string; end: boolean; icon: IconName }[] = [
-  { to: '/explore', label: 'Explore', end: false, icon: 'wrench' },
-  { to: '/home', label: 'Home', end: true, icon: 'home' },
-  { to: '/vehicles', label: 'Vehicles', end: false, icon: 'vehicle' },
-  { to: '/services', label: 'My visits', end: false, icon: 'wrench' },
-  { to: '/documents', label: 'Documents', end: true, icon: 'file' },
-  { to: '/maintenance', label: 'Maintenance', end: true, icon: 'calendar' },
-  { to: '/history', label: 'Service history', end: true, icon: 'history' },
-  { to: '/payments', label: 'Payments', end: true, icon: 'card' },
-  { to: '/support', label: 'Support', end: true, icon: 'support' },
-  { to: '/profile', label: 'Profile', end: true, icon: 'user' },
-];
+const SIDE_NAV: { to: string; label: string; end: boolean; icon: IconName }[] =
+  [
+    { to: '/explore', label: 'Explore', end: false, icon: 'wrench' },
+    { to: '/home', label: 'Home', end: true, icon: 'home' },
+    { to: '/vehicles', label: 'Vehicles', end: false, icon: 'vehicle' },
+    { to: '/services', label: 'My visits', end: false, icon: 'wrench' },
+    { to: '/documents', label: 'Documents', end: true, icon: 'file' },
+    { to: '/maintenance', label: 'Maintenance', end: true, icon: 'calendar' },
+    { to: '/history', label: 'Service history', end: true, icon: 'history' },
+    { to: '/payments', label: 'Payments', end: true, icon: 'card' },
+    { to: '/support', label: 'Support', end: true, icon: 'support' },
+    { to: '/profile', label: 'Profile', end: true, icon: 'user' },
+  ];
 
-const MOBILE_NAV: { to: string; label: string; end: boolean; icon: IconName }[] = [
+const MOBILE_NAV: {
+  to: string;
+  label: string;
+  end: boolean;
+  icon: IconName;
+}[] = [
   { to: '/home', label: 'Home', end: true, icon: 'home' },
   { to: '/vehicles', label: 'Vehicles', end: false, icon: 'vehicle' },
   { to: '/services', label: 'My visits', end: false, icon: 'wrench' },
@@ -28,7 +41,6 @@ const MOBILE_NAV: { to: string; label: string; end: boolean; icon: IconName }[] 
 ];
 
 export function AppShell() {
-  const { state } = useDomain();
   return (
     <div className="af-app">
       <aside className="af-side">
@@ -51,6 +63,7 @@ export function AppShell() {
         </nav>
       </aside>
       <div className="af-app-main">
+        <LocationToolbar />
         <Outlet />
       </div>
       <nav className="af-nav" aria-label="Primary">
@@ -63,7 +76,6 @@ export function AppShell() {
           >
             <Icon name={item.icon} />
             {item.label}
-            {item.to === '/notifications' && state.unreadCount ? ` (${state.unreadCount})` : ''}
           </NavLink>
         ))}
       </nav>
@@ -71,8 +83,21 @@ export function AppShell() {
   );
 }
 
+export function AuthenticatedLayout() {
+  const { pathname } = useLocation();
+  if (pathname === '/profile/setup')
+    return (
+      <div className="af-authenticated-setup">
+        <LocationToolbar />
+        <Outlet />
+      </div>
+    );
+  return <AppShell />;
+}
+
 export function RequireProfile({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
+  const location = useLocation();
   const [state, setState] = useState<'loading' | 'ok' | 'setup'>('loading');
 
   useEffect(() => {
@@ -101,6 +126,11 @@ export function RequireProfile({ children }: { children: ReactNode }) {
       </section>
     );
   }
-  if (state === 'setup') return <Navigate to="/profile/setup" replace />;
+  if (state === 'setup') {
+    rememberAuthReturnTo(
+      `${location.pathname}${location.search}${location.hash}`,
+    );
+    return <Navigate to="/profile/setup" replace />;
+  }
   return children;
 }

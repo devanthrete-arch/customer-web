@@ -12,7 +12,7 @@ import {
 } from '../lib/iam';
 import {
   getPendingAuth,
-  setAccessToken,
+  beginAuthenticatedSession,
   setPendingAuth,
   setPendingDisplayName,
 } from '../lib/session';
@@ -84,7 +84,7 @@ export function AuthSignInScreen() {
     }
     setBusy(true);
     try {
-      setAccessToken(token);
+      beginAuthenticatedSession(token);
       navigate(await destinationAfterAuth(), { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Token rejected by Autoflex');
@@ -243,7 +243,7 @@ export function AuthOtpScreen() {
         pending.otpId === DEV_OTP_ID
           ? await devSignIn(pending.mobile)
           : await loginOtp(pending.otpId, otp);
-      setAccessToken(token);
+      beginAuthenticatedSession(token);
       navigate(await destinationAfterAuth(), { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'OTP failed');

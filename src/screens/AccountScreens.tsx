@@ -8,6 +8,8 @@ import { digitsOnly, formatWhen, localPhone } from '../lib/format';
 import { signOut } from '../lib/session';
 import { ApiError } from '../lib/api';
 import { BOOKING_AGE_POLICY } from '../lib/booking-policy';
+import { useDiscoveryLocation } from '../location/DiscoveryLocation';
+import { locationDescription } from '../lib/discovery-location';
 import { Empty, ErrorText, PageHeader, StatusPill, useAction } from './ui';
 
 const CATEGORY_LABEL: Record<string, string> = {
@@ -60,12 +62,12 @@ export function NotificationsScreen() {
 
 export function ProfileScreen() {
   const { state, updateProfile } = useDomain();
+  const { location, openPicker } = useDiscoveryLocation();
   const navigate = useNavigate();
   const [form, setForm] = useState({
     displayName: state.profile.displayName ?? '',
     email: state.profile.email ?? '',
     phone: localPhone(state.profile.phone),
-    selectedPlaceLabel: state.profile.selectedPlaceLabel ?? '',
     dateOfBirth: state.profile.dateOfBirth ?? '',
   });
   const [saved, setSaved] = useState(false);
@@ -79,7 +81,6 @@ export function ProfileScreen() {
         displayName: form.displayName.trim(),
         email: form.email.trim() || undefined,
         phone: form.phone,
-        selectedPlaceLabel: form.selectedPlaceLabel.trim(),
         dateOfBirth: form.dateOfBirth,
       });
       setSaved(true);
@@ -110,14 +111,11 @@ export function ProfileScreen() {
           Email
           <input type="email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} />
         </label>
-        <label className="af-field">
-          Area and city
-          <input
-            required
-            value={form.selectedPlaceLabel}
-            onChange={(event) => setForm({ ...form, selectedPlaceLabel: event.target.value })}
-          />
-        </label>
+        <div className="af-field">
+          <span>Service location</span>
+          <p>{location ? locationDescription(location) : 'Choose an area'}</p>
+          <button type="button" className="af-skip" onClick={openPicker}>Change service location</button>
+        </div>
         <label className="af-field">
           Date of birth
           <input

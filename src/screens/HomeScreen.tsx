@@ -1,5 +1,7 @@
 import { Link } from 'react-router-dom';
 import { Icon } from '../components/Icons';
+import { useDiscoveryLocation } from '../location/DiscoveryLocation';
+import { locationDescription } from '../lib/discovery-location';
 import { useDomain } from '../domain/DomainProvider';
 import {
   SERVICE_STAGES,
@@ -16,6 +18,7 @@ type Attention = { key: string; to: string; tone: Tone; pill: string; title: str
 
 export function DashboardScreen() {
   const { state } = useDomain();
+  const { location } = useDiscoveryLocation();
   const activeVehicles = state.vehicles.filter((vehicle) => vehicle.status === 'ACTIVE');
   const activeServices = state.services.filter((service) => service.isActive);
   const featured = activeServices[0];
@@ -74,7 +77,7 @@ export function DashboardScreen() {
           <div>
             <p className="af-dash-hello">Your vehicle home</p>
             <h1>Hello, {firstName}</h1>
-            <p className="af-dash-city">{state.profile.selectedPlaceLabel ?? state.profile.city}</p>
+            <p className="af-dash-city">{location ? locationDescription(location) : 'Choose your service location'}</p>
           </div>
           <Link
             className="af-notification-button"

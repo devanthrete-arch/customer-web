@@ -1,10 +1,21 @@
 import { ExploreScreen, ExploreCenterScreen } from './screens/ExploreScreens';
 import { SupportDetailScreen } from './screens/SupportDetailScreen';
 import { useEffect } from 'react';
-import { Navigate, Outlet, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
+import {
+  Navigate,
+  Outlet,
+  Route,
+  Routes,
+  useLocation,
+  useNavigate,
+} from 'react-router-dom';
 import { PublicTrackingScreen } from './screens/PublicTrackingScreen';
 import { isTrackingPath } from './lib/public-tracking';
-import { AppShell, RequireProfile } from './components/AppShell';
+import { AuthenticatedLayout, RequireProfile } from './components/AppShell';
+import {
+  DiscoveryLocationProvider,
+  RequireDiscoveryLocation,
+} from './location/DiscoveryLocation';
 import { RequireBookingEligibility } from './components/BookingEligibility';
 import {
   AuthOtpScreen,
@@ -91,56 +102,88 @@ export default function App() {
         <Route path="/auth/register" element={<AuthRegisterScreen />} />
         <Route path="/auth/otp" element={<AuthOtpScreen />} />
         <Route
-          path="/profile/setup"
           element={
             <RequireToken>
-              <ProfileSetupScreen />
+              <DiscoveryLocationProvider>
+                <AuthenticatedLayout />
+              </DiscoveryLocationProvider>
             </RequireToken>
           }
-        />
-        <Route
-          element={
-            <RequireProfile>
-              <DomainProvider>
-                <AppShell />
-              </DomainProvider>
-            </RequireProfile>
-          }
         >
-          <Route path="/explore" element={<ExploreScreen />} />
-          <Route path="/explore/centers/:id" element={<ExploreCenterScreen />} />
-          <Route path="/home" element={<DashboardScreen />} />
-          <Route path="/vehicles" element={<VehicleListScreen />} />
-          <Route path="/vehicles/new" element={<VehicleAddScreen />} />
-          <Route path="/vehicles/:id/edit" element={<VehicleEditScreen />} />
-          <Route path="/vehicles/:id" element={<VehicleDetailScreen />} />
-          <Route path="/services" element={<ServiceListScreen />} />
-          <Route element={<RequireBookingEligibility />}>
-            <Route path="/services/book/vehicle" element={<BookVehicleScreen />} />
-            <Route path="/services/book/center" element={<BookCenterScreen />} />
-            <Route path="/services/book/services" element={<BookServicesScreen />} />
-            <Route path="/services/book/issue" element={<BookIssueScreen />} />
-            <Route path="/services/book/schedule" element={<BookScheduleScreen />} />
-            <Route path="/services/book/review" element={<BookReviewScreen />} />
+          <Route path="/profile/setup" element={<ProfileSetupScreen />} />
+          <Route
+            element={
+              <RequireProfile>
+                <RequireDiscoveryLocation>
+                  <DomainProvider>
+                    <Outlet />
+                  </DomainProvider>
+                </RequireDiscoveryLocation>
+              </RequireProfile>
+            }
+          >
+            <Route path="/explore" element={<ExploreScreen />} />
+            <Route
+              path="/explore/centers/:id"
+              element={<ExploreCenterScreen />}
+            />
+            <Route path="/home" element={<DashboardScreen />} />
+            <Route path="/vehicles" element={<VehicleListScreen />} />
+            <Route path="/vehicles/new" element={<VehicleAddScreen />} />
+            <Route path="/vehicles/:id/edit" element={<VehicleEditScreen />} />
+            <Route path="/vehicles/:id" element={<VehicleDetailScreen />} />
+            <Route path="/services" element={<ServiceListScreen />} />
+            <Route element={<RequireBookingEligibility />}>
+              <Route
+                path="/services/book/vehicle"
+                element={<BookVehicleScreen />}
+              />
+              <Route
+                path="/services/book/center"
+                element={<BookCenterScreen />}
+              />
+              <Route
+                path="/services/book/services"
+                element={<BookServicesScreen />}
+              />
+              <Route
+                path="/services/book/issue"
+                element={<BookIssueScreen />}
+              />
+              <Route
+                path="/services/book/schedule"
+                element={<BookScheduleScreen />}
+              />
+              <Route
+                path="/services/book/review"
+                element={<BookReviewScreen />}
+              />
+            </Route>
+            <Route path="/services/:id/approval" element={<ApprovalScreen />} />
+            <Route path="/services/:id" element={<ServiceDetailScreen />} />
+            <Route path="/documents" element={<DocumentsScreen />} />
+            <Route path="/documents/new" element={<DocumentAddScreen />} />
+            <Route path="/documents/:id" element={<DocumentDetailScreen />} />
+            <Route path="/history" element={<HistoryScreen />} />
+            <Route path="/history/:id" element={<HistoryDetailScreen />} />
+            <Route path="/maintenance" element={<MaintenanceScreen />} />
+            <Route path="/maintenance/new" element={<MaintenanceAddScreen />} />
+            <Route
+              path="/maintenance/:id"
+              element={<MaintenanceDetailScreen />}
+            />
+            <Route path="/payments" element={<PaymentsScreen />} />
+            <Route path="/payments/:id" element={<PaymentDetailScreen />} />
+            <Route path="/notifications" element={<NotificationsScreen />} />
+            <Route path="/support" element={<SupportScreen />} />
+            <Route path="/support/:id" element={<SupportDetailScreen />} />
+            <Route path="/profile" element={<ProfileScreen />} />
+            <Route path="/profile/addresses" element={<AddressesScreen />} />
+            <Route
+              path="/profile/preferences"
+              element={<PreferencesScreen />}
+            />
           </Route>
-          <Route path="/services/:id/approval" element={<ApprovalScreen />} />
-          <Route path="/services/:id" element={<ServiceDetailScreen />} />
-          <Route path="/documents" element={<DocumentsScreen />} />
-          <Route path="/documents/new" element={<DocumentAddScreen />} />
-          <Route path="/documents/:id" element={<DocumentDetailScreen />} />
-          <Route path="/history" element={<HistoryScreen />} />
-          <Route path="/history/:id" element={<HistoryDetailScreen />} />
-          <Route path="/maintenance" element={<MaintenanceScreen />} />
-          <Route path="/maintenance/new" element={<MaintenanceAddScreen />} />
-          <Route path="/maintenance/:id" element={<MaintenanceDetailScreen />} />
-          <Route path="/payments" element={<PaymentsScreen />} />
-          <Route path="/payments/:id" element={<PaymentDetailScreen />} />
-          <Route path="/notifications" element={<NotificationsScreen />} />
-          <Route path="/support" element={<SupportScreen />} />
-          <Route path="/support/:id" element={<SupportDetailScreen />} />
-          <Route path="/profile" element={<ProfileScreen />} />
-          <Route path="/profile/addresses" element={<AddressesScreen />} />
-          <Route path="/profile/preferences" element={<PreferencesScreen />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>

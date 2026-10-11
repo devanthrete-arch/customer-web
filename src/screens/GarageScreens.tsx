@@ -276,7 +276,7 @@ function VehicleFields({
             })
           }
         >
-          <option value="FOUR_WHEELER">Car</option>
+          <option value="FOUR_WHEELER">Four-wheeler</option>
           <option value="TWO_WHEELER">Two-wheeler</option>
         </select>
       </label>
