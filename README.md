@@ -73,3 +73,9 @@ With IAM env vars empty, OTP falls through to the local backend session.
 npm run typecheck
 npm run build
 ```
+
+## AF-029 catalog and marketplace
+
+The signed-in **Explore** routes support service-first discovery and center details; **My visits** contains existing bookings/jobs. Saved-vehicle entry shares the same marketplace and booking flow. New menu selections require backend migration 0009 and the services import. Browser regression instructions are in `tests/README.md`.
+
+[Implemented flow and setup](../development-documents/architecture/service-marketplace-runbook.md).

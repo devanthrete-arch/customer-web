@@ -49,6 +49,7 @@ export type ServiceStage = (typeof SERVICE_STAGES)[number];
 export type ServiceStatus = ServiceStage | 'ON_HOLD' | 'CANCELLED' | 'NO_SHOW';
 
 export type ServiceLine = {
+  scope?: ApiLine['scope'];
   id: string;
   kind: ApiLine['kind'];
   description: string;
@@ -95,7 +96,13 @@ export type ServiceRecord = {
   stage: ServiceStage | null;
   isActive: boolean;
   request: string | null;
-  bookedItems: { name: string; priceInr: number; priceIsStarting: boolean }[];
+  bookedItems: {
+    name: string;
+    description?: string | null;
+    priceInr: number;
+    priceIsStarting: boolean;
+    scope?: ApiLine['scope'];
+  }[];
   estimateInr: number;
   currentInr: number | null;
   pendingInr: number;
@@ -225,6 +232,7 @@ function toLine(row: ApiLine): ServiceLine {
     id: row.id,
     kind: row.kind,
     description: row.description,
+    scope: row.scope,
     partType: row.partType,
     quantity: row.quantity,
     amountInr: amount(row.amountInr),
@@ -337,6 +345,8 @@ export function jobToService(
     request: job.customerRequest ?? booking?.issueDescription ?? null,
     bookedItems: (booking?.items ?? []).map((item) => ({
       name: item.name,
+      description: item.description,
+      scope: item.scope,
       priceInr: amount(item.priceInr),
       priceIsStarting: item.priceIsStarting,
     })),
@@ -371,6 +381,8 @@ export function bookingToService(booking: ApiBooking): ServiceRecord {
   const status = BOOKING_STATUS[booking.status];
   const items = booking.items.map((item) => ({
     name: item.name,
+    description: item.description,
+    scope: item.scope,
     priceInr: amount(item.priceInr),
     priceIsStarting: item.priceIsStarting,
   }));

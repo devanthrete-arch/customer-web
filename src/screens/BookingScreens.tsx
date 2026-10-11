@@ -1,12 +1,18 @@
+import { ExploreScreen } from './ExploreScreens';
+import { MenuChoices } from '../components/MenuChoices';
+import { choiceKey, exploreApi, overlappingChoices, type Choice } from '../lib/marketplace';
 import { useEffect, useState, type ReactNode } from 'react';
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { useDomain } from '../domain/DomainProvider';
-import type { ApiCenterDetail, ApiCenterListItem, ApiOffering, ApiSlotDay, BookingEligibilityCode } from '../domain/api-types';
-import { BookingEligibilityNotice, isBookingEligibilityCode } from '../components/BookingEligibility';
+import type { ApiSlotDay, BookingEligibilityCode } from '../domain/api-types';
+import {
+  BookingEligibilityNotice,
+  isBookingEligibilityCode,
+} from '../components/BookingEligibility';
 import { marketplaceApi } from '../domain/client';
 import { ApiError, errorMessage } from '../lib/api';
 import { clearDraft, draftEstimate, getDraft, patchDraft, type BookingDraft } from '../lib/booking';
-import { BENGALURU, formatInr, formatKm, formatSlot, formatWhen } from '../lib/format';
+import { formatInr, formatSlot, formatWhen } from '../lib/format';
 import { ErrorText, PageHeader, istToday, useAction } from './ui';
 
 const STEPS = 6;
@@ -62,7 +68,9 @@ export function BookVehicleScreen() {
     return (
       <BookingShell step={1} title="Which vehicle needs service?" back="/services">
         <p className="af-note">Add a vehicle first. It takes under a minute.</p>
-        <Link className="af-btn" to="/vehicles/new">Add vehicle</Link>
+        <Link className="af-btn" to="/vehicles/new?return=booking">
+          Add vehicle
+        </Link>
       </BookingShell>
     );
   }
@@ -85,6 +93,7 @@ export function BookVehicleScreen() {
           </span>
         </button>
       ))}
+      <Link className="af-skip" to="/vehicles/new?return=booking">Add another vehicle</Link>
       <button
         className="af-btn"
         disabled={!selected}
@@ -97,9 +106,23 @@ export function BookVehicleScreen() {
             vehicleId: vehicle.id,
             vehicleLabel: `${vehicle.label} · ${vehicle.registrationNumber}`,
             vehicleType: vehicle.vehicleType,
-            ...(changed ? { centerId: undefined, centerName: undefined, offerings: [], slotStart: undefined } : {}),
+            ...(changed ? { slotStart: undefined, slotEnd: undefined } : {}),
           });
-          navigate('/services/book/center');
+          const freshVehicleEntry = params.has('vehicleId') && params.get('resume') !== '1';
+          if (freshVehicleEntry)
+            patchDraft({
+              entry: 'VEHICLE',
+              centerId: undefined,
+              centerName: undefined,
+              offerings: [],
+              slotStart: undefined,
+              slotEnd: undefined,
+            });
+          navigate(
+            !freshVehicleEntry && previous.entry === 'MARKETPLACE' && previous.centerId
+              ? '/services/book/services'
+              : '/services/book/center',
+          );
         }}
       >
         Continue
@@ -108,157 +131,113 @@ export function BookVehicleScreen() {
   );
 }
 
-type CenterOption = ApiCenterListItem & Pick<ApiCenterDetail, 'supportedVehicleTypes' | 'bookingEnabled'>;
-
 export function BookCenterScreen() {
-  const { state } = useDomain();
-  const navigate = useNavigate();
-  const { draft, redirect } = useDraftGuard(['vehicleId']);
-  const [centers, setCenters] = useState<CenterOption[] | null>(null);
-  const [error, setError] = useState('');
-  const lat = state.profile.lastLat ?? BENGALURU.lat;
-  const lng = state.profile.lastLng ?? BENGALURU.lng;
-
-  useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      try {
-        const list = await marketplaceApi.centers(lat, lng);
-        const details = await Promise.all(list.map((center) => marketplaceApi.center(center.id)));
-        if (cancelled) return;
-        setCenters(
-          list.map((center, index) => ({
-            ...center,
-            supportedVehicleTypes: details[index].supportedVehicleTypes,
-            bookingEnabled: details[index].bookingEnabled,
-          })),
-        );
-      } catch (err) {
-        if (!cancelled) setError(errorMessage(err, 'Could not load centers'));
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [lat, lng]);
-
-  if (redirect) return <Navigate to={redirect} replace />;
-  const usable = (centers ?? []).filter(
-    (center) => center.bookingEnabled && draft.vehicleType && center.supportedVehicleTypes.includes(draft.vehicleType),
-  );
-
-  return (
-    <BookingShell step={2} title="Choose a service center" subtitle={draft.vehicleLabel} back="/services/book/vehicle">
-      <ErrorText error={error} />
-      {!centers && !error ? <p className="af-hint">Finding centers near you…</p> : null}
-      {centers && usable.length === 0 ? (
-        <p className="af-note">No center near you services this vehicle type yet.</p>
-      ) : null}
-      {usable.map((center) => (
-        <button
-          className={`af-service-card af-button-card ${draft.centerId === center.id ? 'on' : ''}`}
-          key={center.id}
-          onClick={() => {
-            void marketplaceApi
-              .bookingOptions(center.id)
-              .then((options) => {
-                const changed = draft.centerId !== center.id;
-                patchDraft({
-                  centerId: center.id,
-                  centerName: center.displayName,
-                  centerAutoAccept: options.autoAccept,
-                  baseEstimateInr: Number(options.modes[0]?.estimateInr ?? 0),
-                  ...(changed ? { offerings: [], slotStart: undefined, slotEnd: undefined } : {}),
-                });
-                navigate('/services/book/services');
-              })
-              .catch((err: unknown) => setError(errorMessage(err)));
-          }}
-        >
-          <h3>{center.displayName}</h3>
-          <p>
-            {formatKm(center.distanceMeters)}
-            {center.formattedAddress ? ` · ${center.formattedAddress}` : ''}
-          </p>
-          <p className="af-meta">
-            {center.ratingAvg ? `★ ${center.ratingAvg.toFixed(1)} (${center.ratingCount})` : 'New on Autoflex'}
-          </p>
-          <b>Choose →</b>
-        </button>
-      ))}
-    </BookingShell>
-  );
+  return <ExploreScreen booking />;
 }
 
 export function BookServicesScreen() {
   const navigate = useNavigate();
   const { draft, redirect } = useDraftGuard(['vehicleId', 'centerId']);
-  const [menu, setMenu] = useState<ApiOffering[] | null>(null);
+  const [menu, setMenu] = useState<Choice[] | null>(null);
   const [error, setError] = useState('');
-  const [picked, setPicked] = useState<Set<string>>(() => new Set((draft.offerings ?? []).map((item) => item.id)));
-
+  const [revision, setRevision] = useState(0);
+  const [picked, setPicked] = useState<Set<string>>(
+    () => new Set((draft.offerings ?? []).map(choiceKey)),
+  );
   useEffect(() => {
     if (!draft.centerId || !draft.vehicleType) return;
-    let cancelled = false;
-    marketplaceApi
-      .offerings(draft.centerId, draft.vehicleType)
-      .then((rows) => !cancelled && setMenu(rows))
-      .catch((err: unknown) => !cancelled && setError(errorMessage(err, 'Could not load the service menu')));
+    let live = true;
+    setError('');
+    setMenu(null);
+    Promise.all([
+      marketplaceApi.center(draft.centerId),
+      exploreApi.menu(draft.centerId, draft.vehicleType),
+    ])
+      .then(([center, rows]) => {
+        if (!live) return;
+        if (!center.bookingEnabled || !center.supportedVehicleTypes.includes(draft.vehicleType!)) {
+          setError(
+            'This center cannot accept a booking for this vehicle. Choose another vehicle or center.',
+          );
+          return;
+        }
+        setMenu(rows);
+      })
+      .catch((e) => live && setError(errorMessage(e)));
     return () => {
-      cancelled = true;
+      live = false;
     };
-  }, [draft.centerId, draft.vehicleType]);
-
+  }, [draft.centerId, draft.vehicleType, revision]);
   if (redirect) return <Navigate to={redirect} replace />;
-  const chosen = (menu ?? []).filter((item) => picked.has(item.id));
-  const total = chosen.reduce((sum, item) => sum + Number(item.priceInr), 0);
-
-  function toggle(id: string) {
-    setPicked((current) => {
-      const next = new Set(current);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+  const chosen = (menu ?? []).filter((item) => picked.has(choiceKey(item)));
+  const missing = menu
+    ? (draft.offerings ?? []).filter(
+        (item) =>
+          picked.has(choiceKey(item)) && !menu.some((m) => choiceKey(m) === choiceKey(item)),
+      )
+    : [];
+  const changed = chosen.some((item) => {
+    const old = draft.offerings?.find((o) => choiceKey(o) === choiceKey(item));
+    return old && old.version !== item.version;
+  });
+  const overlap = overlappingChoices(chosen);
+  const total =
+    chosen.reduce((paise, item) => paise + Math.round(Number(item.priceInr) * 100), 0) / 100;
+  function toggle(key: string) {
+    setPicked((old) => {
+      const next = new Set(old);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
       return next;
     });
   }
 
   return (
-    <BookingShell step={3} title="What does it need?" subtitle={draft.centerName} back="/services/book/center">
+    <BookingShell
+      step={3}
+      title="Review services & packages"
+      subtitle={`${draft.centerName} · ${draft.vehicleLabel}`}
+      back={draft.entry === 'MARKETPLACE' ? '/services/book/vehicle' : '/services/book/center'}
+    >
       <ErrorText error={error} />
-      {!menu && !error ? <p className="af-hint">Loading the service menu…</p> : null}
-      <div className="af-line-list">
-        {(menu ?? []).map((item) => (
-          <label className={`af-line ${picked.has(item.id) ? '' : 'off'}`} key={item.id}>
-            <input type="checkbox" checked={picked.has(item.id)} onChange={() => toggle(item.id)} />
-            <span>
-              <b>{item.name}</b>
-              <small>
-                {[item.categoryName, item.description, `about ${Math.round(item.durationMinutes / 60) || 1} h`]
-                  .filter(Boolean)
-                  .join(' · ')}
-              </small>
-            </span>
-            <b>
-              {item.priceIsStarting ? 'from ' : ''}
-              {formatInr(Number(item.priceInr))}
-            </b>
-          </label>
-        ))}
-      </div>
+      {error && <button onClick={() => setRevision((n) => n + 1)}>Retry menu</button>}
+      {!menu && !error && <p role="status">Checking the current menu for your vehicle…</p>}
+      {changed && (
+        <p role="status" className="af-note">
+          Price or scope changed since you selected this work. Review the details and total below
+          before continuing.
+        </p>
+      )}
+      {missing.map((item) => (
+        <p role="alert" key={choiceKey(item)}>
+          {item.name} is no longer available for this vehicle.{' '}
+          <button onClick={() => toggle(choiceKey(item))}>Remove this selection</button>
+        </p>
+      ))}
+      {menu && <MenuChoices menu={menu} picked={picked} toggle={toggle} />}
+      {overlap && (
+        <p role="alert">
+          A service is included more than once. Remove an overlapping service or package.
+        </p>
+      )}
       {chosen.length ? (
         <div className="af-total">
-          <span>Estimate</span>
+          <span>{chosen.some((c) => c.priceIsStarting) ? 'Starting estimate' : 'Estimate'}</span>
           <b>{formatInr(total)}</b>
         </div>
       ) : (
-        <p className="af-hint">Not sure? Skip this and describe the problem on the next step.</p>
+        <p>Not sure what you need? Describe the issue on the next step.</p>
       )}
       <button
         className="af-btn"
+        disabled={!menu || !!error || !!missing.length || overlap || chosen.length > 10}
         onClick={() => {
           patchDraft({
             offerings: chosen.map((item) => ({
               id: item.id,
+              kind: item.kind,
+              version: item.version,
+              scope: item.scope,
               name: item.name,
               priceInr: Number(item.priceInr),
               priceIsStarting: item.priceIsStarting,
@@ -267,8 +246,14 @@ export function BookServicesScreen() {
           navigate('/services/book/issue');
         }}
       >
-        {chosen.length ? 'Continue' : 'Skip and describe the issue'}
+        {chosen.length ? 'Confirm these selections' : 'Describe the issue'}
       </button>
+      <Link className="af-skip" to="/services/book/center">
+        Choose another center
+      </Link>
+      <Link className="af-skip" to="/services/book/vehicle">
+        Choose another vehicle
+      </Link>
     </BookingShell>
   );
 }
@@ -356,7 +341,9 @@ export function BookScheduleScreen() {
       <ErrorText error={error} />
       {!day && !error ? <p className="af-hint">Checking availability…</p> : null}
       {day?.closed ? <p className="af-note">The center is closed on this day.</p> : null}
-      {day && !day.closed && open.length === 0 ? <p className="af-note">No slots left on this day.</p> : null}
+      {day && !day.closed && open.length === 0 ? (
+        <p className="af-note">No slots left on this day.</p>
+      ) : null}
       <div className="af-slots">
         {open.map((item) => (
           <button
@@ -412,6 +399,8 @@ export function BookReviewScreen() {
     );
   }
   const offerings = draft.offerings ?? [];
+  if (offerings.some((item) => !item.version))
+    return <Navigate to="/services/book/services" replace />;
   const startsFrom = offerings.some((item) => item.priceIsStarting) || offerings.length === 0;
 
   return (
@@ -432,11 +421,27 @@ export function BookReviewScreen() {
         <span>Estimate{startsFrom ? ' (starting)' : ''}</span>
         <b>{formatInr(draftEstimate(draft))}</b>
       </div>
+      {offerings
+        .filter((item) => item.kind === 'PACKAGE')
+        .map((item) => (
+          <section key={item.id}>
+            <h3>{item.name} includes</h3>
+            <ul>
+              {item.scope?.map((part) => (
+                <li key={part.offeringId}>
+                  {part.quantity} × {part.name}
+                  {part.description ? ` — ${part.description}` : ''}
+                </li>
+              ))}
+            </ul>
+          </section>
+        ))}
       <p className="af-hint">
         You pay at the center after the work is done. Any extra work needs your approval first.
         {draft.centerAutoAccept === false ? ' The center confirms new bookings, usually within a few hours.' : ''}
       </p>
       <ErrorText error={error} />
+      {error && <Link to="/services/book/services">Review current services and prices</Link>}
       <button
         className="af-btn"
         disabled={busy}
@@ -448,7 +453,11 @@ export function BookReviewScreen() {
                 vehicleId: draft.vehicleId!,
                 slotStart: draft.slotStart!,
                 slotEnd: draft.slotEnd!,
-                offeringIds: offerings.map((item) => item.id),
+                selections: offerings.map((item) => ({
+                  kind: item.kind ?? 'SERVICE',
+                  id: item.id,
+                  version: item.version!,
+                })),
                 issueDescription: draft.issueDescription,
               });
               clearDraft();

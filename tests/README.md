@@ -16,3 +16,7 @@ With Vite running, open `/tests/support-conversation.html`. The real support det
 Open `/tests/public-tracking.html` with Vite running. Fifteen real-App/StrictMode scenarios cover anonymous transport and account-event isolation, escaping, stale snapshots/recovery, unavailable-link clearing, token races, polling/visibility, timeout/abort, terminal revalidation, rate limits (including browser restoration and oversized Retry-After), all statuses/malformed data, invalid paths and cleanup. It mocks fetch and timers, saves/restores the development origin's session, and calls no real API. Use a dedicated development origin without concurrent account work. Typecheck covers the entry point; assertions run only when opened in the browser.
 
 `/tests/public-tracking-responsive.html?token=<disposable-local-token>` embeds the real public route at 360/700/1280px for layout/keyboard checks. Keep fixture tokens local. These HTML fixtures are separate development entries, excluded from the production bundle.
+
+## AF-029 marketplace
+
+Open `/tests/marketplace.html` on Vite for five real-component/StrictMode scenarios: no-vehicle explore/add/return, changed-price review, unavailable-work recovery, fresh saved-vehicle entry, and location-denial/manual-city recovery. The fixture mocks all API reads and restores the booking draft; it calls no real backend. Typecheck covers it; open the page to execute the assertions.

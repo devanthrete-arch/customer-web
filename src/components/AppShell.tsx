@@ -7,9 +7,10 @@ import { Icon, type IconName } from './Icons';
 import { LogoMark } from './LogoLockup';
 
 const SIDE_NAV: { to: string; label: string; end: boolean; icon: IconName }[] = [
+  { to: '/explore', label: 'Explore', end: false, icon: 'wrench' },
   { to: '/home', label: 'Home', end: true, icon: 'home' },
   { to: '/vehicles', label: 'Vehicles', end: false, icon: 'vehicle' },
-  { to: '/services', label: 'Services', end: false, icon: 'wrench' },
+  { to: '/services', label: 'My visits', end: false, icon: 'wrench' },
   { to: '/documents', label: 'Documents', end: true, icon: 'file' },
   { to: '/maintenance', label: 'Maintenance', end: true, icon: 'calendar' },
   { to: '/history', label: 'Service history', end: true, icon: 'history' },
@@ -21,8 +22,8 @@ const SIDE_NAV: { to: string; label: string; end: boolean; icon: IconName }[] = 
 const MOBILE_NAV: { to: string; label: string; end: boolean; icon: IconName }[] = [
   { to: '/home', label: 'Home', end: true, icon: 'home' },
   { to: '/vehicles', label: 'Vehicles', end: false, icon: 'vehicle' },
-  { to: '/services', label: 'Services', end: false, icon: 'wrench' },
-  { to: '/notifications', label: 'Activity', end: true, icon: 'bell' },
+  { to: '/services', label: 'My visits', end: false, icon: 'wrench' },
+  { to: '/explore', label: 'Explore', end: false, icon: 'wrench' },
   { to: '/profile', label: 'Profile', end: false, icon: 'user' },
 ];
 

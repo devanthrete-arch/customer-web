@@ -33,10 +33,19 @@ function stagesFor(service: ServiceRecord): ServiceStage[] {
 export function ServiceListScreen() {
   const { state } = useDomain();
   const [filter, setFilter] = useState<'ACTIVE' | 'PAST'>('ACTIVE');
-  const items = state.services.filter((service) => (filter === 'ACTIVE' ? service.isActive : !service.isActive));
+  const items = state.services.filter((service) =>
+    filter === 'ACTIVE' ? service.isActive : !service.isActive,
+  );
   return (
     <section className="af-screen af-wide">
-      <PageHeader title="Services" action={<Link className="af-skip" to="/services/book/vehicle">Book service</Link>} />
+      <PageHeader
+        title="My visits"
+        action={
+          <Link className="af-skip" to="/services/book/vehicle">
+            Book service
+          </Link>
+        }
+      />
       <div className="af-tabs">
         <button className={filter === 'ACTIVE' ? 'on' : ''} onClick={() => setFilter('ACTIVE')}>
           Active & upcoming
@@ -81,6 +90,16 @@ function LineList({ lines }: { lines: ServiceLine[] }) {
         <div className={`af-row ${line.status === 'DECLINED' ? 'muted' : ''}`} key={line.id}>
           <span>
             {line.description}
+            {!!line.scope?.length && (
+              <small>
+                {line.scope
+                  .map(
+                    (part) =>
+                      `${part.quantity} × ${part.name}${part.description ? ': ' + part.description : ''}`,
+                  )
+                  .join(' · ')}
+              </small>
+            )}
             <small className="af-meta"> {lineMeta(line)}</small>
             {line.status === 'DECLINED' ? <small className="af-meta"> · declined</small> : null}
             {line.status === 'PENDING' ? <small className="af-meta"> · awaiting you</small> : null}
@@ -160,7 +179,9 @@ export function ServiceDetailScreen() {
                 Pay {formatInr(service.balanceInr || service.currentInr || 0)} at the counter by UPI, card or cash when you
                 collect it.
               </p>
-              {service.invoiceId ? <Link to={`/payments/${service.invoiceId}`}>View bill →</Link> : null}
+              {service.invoiceId ? (
+                <Link to={`/payments/${service.invoiceId}`}>View bill →</Link>
+              ) : null}
             </div>
           ) : null}
 
@@ -240,7 +261,20 @@ export function ServiceDetailScreen() {
                 <h3>Booked</h3>
                 {service.bookedItems.map((item) => (
                   <div className="af-row" key={item.name}>
-                    <span>{item.name}</span>
+                    <span>
+                      {item.name}
+                      {item.description && <small>{item.description}</small>}
+                      {!!item.scope?.length && (
+                        <small>
+                          {item.scope
+                            .map(
+                              (part) =>
+                                `${part.quantity} × ${part.name}${part.description ? ': ' + part.description : ''}`,
+                            )
+                            .join(' · ')}
+                        </small>
+                      )}
+                    </span>
                     <b>
                       {item.priceIsStarting ? 'from ' : ''}
                       {formatInr(item.priceInr)}
@@ -410,7 +444,8 @@ export function ApprovalScreen() {
           disabled={busy || chosen.length === 0 || (needsAck && !acknowledged)}
           onClick={() => submit(true)}
         >
-          {chosen.length === approval.items.length ? 'Approve all' : 'Approve selected'} · {formatInr(chosenTotal)}
+          {chosen.length === approval.items.length ? 'Approve all' : 'Approve selected'} ·{' '}
+          {formatInr(chosenTotal)}
         </button>
         <button className="af-btn secondary" disabled={busy} onClick={() => submit(false)}>
           Decline all
@@ -487,7 +522,15 @@ export function HistoryDetailScreen() {
         <main>
           <div className="af-panel">
             <h3>Work performed</h3>
-            {labour.length ? <ul>{labour.map((line) => <li key={line.id}>{line.description}</li>)}</ul> : <p>—</p>}
+            {labour.length ? (
+              <ul>
+                {labour.map((line) => (
+                  <li key={line.id}>{line.description}</li>
+                ))}
+              </ul>
+            ) : (
+              <p>—</p>
+            )}
           </div>
           <div className="af-panel">
             <h3>Parts replaced</h3>
@@ -508,7 +551,11 @@ export function HistoryDetailScreen() {
           {declined.length ? (
             <div className="af-panel">
               <h3>Recommended for later</h3>
-              <ul>{declined.map((line) => <li key={line.id}>{line.description}</li>)}</ul>
+              <ul>
+                {declined.map((line) => (
+                  <li key={line.id}>{line.description}</li>
+                ))}
+              </ul>
             </div>
           ) : null}
           {service.finalNotes ? (
@@ -522,7 +569,9 @@ export function HistoryDetailScreen() {
             <p>Center: {service.centerName}</p>
             <p>Checked in: {formatWhen(service.appointmentAt)}</p>
             {service.closedAt ? <p>Handed over: {formatWhen(service.closedAt)}</p> : null}
-            {service.odometerKm ? <p>Odometer: {service.odometerKm.toLocaleString('en-IN')} km</p> : null}
+            {service.odometerKm ? (
+              <p>Odometer: {service.odometerKm.toLocaleString('en-IN')} km</p>
+            ) : null}
           </div>
         </main>
         <aside className="af-panel">
@@ -538,7 +587,9 @@ export function HistoryDetailScreen() {
             <span>Total paid</span>
             <b>{formatInr(service.finalInr ?? service.currentInr ?? 0)}</b>
           </div>
-          {service.invoiceId ? <Link to={`/payments/${service.invoiceId}`}>View bill →</Link> : null}
+          {service.invoiceId ? (
+            <Link to={`/payments/${service.invoiceId}`}>View bill →</Link>
+          ) : null}
         </aside>
       </div>
     </section>

@@ -2985,3 +2985,48 @@ h1,
   .af-track-section-heading h2 { margin-bottom: 6px; width: 100%; }
   .af-track-message { padding-top: 20px; }
 }
+
+.af-explore-filters {
+  display: flex;
+  align-items: end;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin: 20px 0;
+}
+.af-explore-filters .af-field {
+  flex: 1;
+  min-width: 180px;
+}
+.af-explore .af-service-card h2 {
+  margin-top: 0;
+}
+.af-explore .af-service-card p,
+.af-booking li {
+  overflow-wrap: anywhere;
+}
+.af-explore .af-line,
+.af-booking .af-line {
+  align-items: start;
+}
+.af-explore .af-line ul,
+.af-booking .af-line ul {
+  padding-left: 18px;
+}
+.af-explore .af-line small,
+.af-booking .af-line small {
+  display: block;
+}
+@media (max-width: 600px) {
+  .af-explore-filters {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .af-explore .af-line,
+  .af-booking .af-line {
+    grid-template-columns: 24px minmax(0, 1fr);
+  }
+}
+
+.af-row > span { min-width: 0; }
+.af-row > span > small { display: block; margin-top: 0.4rem; line-height: 1.5; }
+.af-row > b { flex-shrink: 0; }

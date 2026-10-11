@@ -20,15 +20,15 @@ const why = [
 
 const steps: { title: string; body: string; icon: IconName; image: string; alt: string }[] = [
   {
-    title: 'Add your vehicle',
-    body: 'Save the bike, scooter, or car you use. One account can hold more than one. The next booking starts from that vehicle, not from memory.',
+    title: 'Explore services and centers',
+    body: 'Sign in to explore the work you need, compare service prices, and see what each package includes. You can also start from a saved car or bike.',
     icon: 'vehicle',
     image: photos.ride,
     alt: 'A rider on a motorcycle along a city road',
   },
   {
-    title: 'Pick a center and a time',
-    body: 'Tell us what it needs, choose a nearby center, and take an open slot. That slot is a real booking. The center confirms it before you arrive.',
+    title: 'Choose your vehicle and a time',
+    body: 'When you are ready to book, select or add your vehicle, check the work and price, and choose an open slot. The center confirms your booking before you arrive.',
     icon: 'calendar',
     image: photos.slot,
     alt: 'A car on an open road in daylight',
@@ -86,7 +86,7 @@ const questions = [
   },
   {
     q: 'What do I need to start?',
-    a: 'Your name, an Indian mobile number, your city, and the vehicle you want serviced.',
+    a: 'Sign in with an Indian mobile number and complete your profile to explore. Choose or add your vehicle when you book. You must be at least 18 to make a booking.',
   },
   {
     q: 'Can the center add work without asking?',
@@ -259,7 +259,8 @@ export function LandingScreen() {
             <h2>Keep the next service in one place.</h2>
             <p>
               Create an account with your mobile number. A short code confirms it is yours, then you
-              add your name and the vehicle. From there, the booking and the job stay on the account.
+              complete your profile. Explore services and add your vehicle when you book. The
+              booking and the job stay on the account.
             </p>
             <Link className="af-landing-cta af-landing-cta-lg" to="/auth/register">
               Get started

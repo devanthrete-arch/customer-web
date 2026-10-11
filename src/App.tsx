@@ -1,3 +1,4 @@
+import { ExploreScreen, ExploreCenterScreen } from './screens/ExploreScreens';
 import { SupportDetailScreen } from './screens/SupportDetailScreen';
 import { useEffect } from 'react';
 import { Navigate, Outlet, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
@@ -106,6 +107,8 @@ export default function App() {
             </RequireProfile>
           }
         >
+          <Route path="/explore" element={<ExploreScreen />} />
+          <Route path="/explore/centers/:id" element={<ExploreCenterScreen />} />
           <Route path="/home" element={<DashboardScreen />} />
           <Route path="/vehicles" element={<VehicleListScreen />} />
           <Route path="/vehicles/new" element={<VehicleAddScreen />} />

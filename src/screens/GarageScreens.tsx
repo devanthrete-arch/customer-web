@@ -46,7 +46,11 @@ export function VehicleListScreen() {
             <p className="af-meta">
               {[vehicle.variant, vehicle.year, vehicle.fuel].filter(Boolean).join(' · ')}
             </p>
-            {vehicle.mileage !== null ? <p><b>{vehicle.mileage.toLocaleString('en-IN')} km</b></p> : null}
+            {vehicle.mileage !== null ? (
+              <p>
+                <b>{vehicle.mileage.toLocaleString('en-IN')} km</b>
+              </p>
+            ) : null}
           </Link>
         ))}
         {active.length === 0 ? (
@@ -404,6 +408,8 @@ function VehicleFields({
 export function VehicleAddScreen() {
   const { addVehicle } = useDomain();
   const navigate = useNavigate();
+  const [params] = useSearchParams();
+  const returnToBooking = params.get('return') === 'booking';
   const [form, setForm] = useState<VehicleForm>(emptyForm);
   const { busy, error, run } = useAction();
 
@@ -414,13 +420,18 @@ export function VehicleAddScreen() {
         throw new Error('Choose the make, model, and variant.');
       }
       const vehicle = await addVehicle(toInput(form));
-      navigate(`/vehicles/${vehicle.id}?added=1`, { replace: true });
+      navigate(
+        returnToBooking
+          ? `/services/book/vehicle?vehicleId=${vehicle.id}&resume=1`
+          : `/vehicles/${vehicle.id}?added=1`,
+        { replace: true },
+      );
     });
   }
 
   return (
     <section className="af-screen af-form">
-      <PageHeader title="Add vehicle" back="/vehicles" />
+      <PageHeader title="Add vehicle" back={returnToBooking ? '/services/book/vehicle' : '/vehicles'} />
       <form onSubmit={save}>
         <VehicleFields form={form} setForm={setForm} useCatalog={form.vehicleType === 'FOUR_WHEELER'} />
         <ErrorText error={error} />
@@ -491,8 +502,12 @@ export function VehicleDetailScreen() {
         back="/vehicles"
         action={<Link className="af-skip" to={`/vehicles/${vehicle.id}/edit`}>Edit</Link>}
       />
-      {params.get('added') ? <div className="af-success-banner">Vehicle added to your garage.</div> : null}
-      {vehicle.status === 'ARCHIVED' ? <p className="af-note">This vehicle is archived. Its history stays available.</p> : null}
+      {params.get('added') ? (
+        <div className="af-success-banner">Vehicle added to your garage.</div>
+      ) : null}
+      {vehicle.status === 'ARCHIVED' ? (
+        <p className="af-note">This vehicle is archived. Its history stays available.</p>
+      ) : null}
       <article className="af-vehicle-hero">
         <div>
           <span className="af-plate">{vehicle.registrationNumber}</span>

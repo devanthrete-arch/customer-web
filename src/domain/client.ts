@@ -66,6 +66,7 @@ export type BookingInput = {
   slotStart: string;
   slotEnd: string;
   offeringIds?: string[];
+  selections?: { kind: 'SERVICE' | 'PACKAGE'; id: string; version: number }[];
   issueDescription?: string;
 };
 

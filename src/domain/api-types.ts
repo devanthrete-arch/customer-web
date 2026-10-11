@@ -103,7 +103,14 @@ export type ApiBooking = {
   vehicleLabel: string;
   registrationNumber: string;
   centerName: string;
-  items: { id: string; name: string; priceInr: string; priceIsStarting: boolean }[];
+  items: {
+    id: string;
+    name: string;
+    description?: string | null;
+    priceInr: string;
+    priceIsStarting: boolean;
+    scope?: ApiLine['scope'];
+  }[];
   serviceJobId: string | null;
   confirmedAt: string | null;
   cancelledAt: string | null;
@@ -124,6 +131,7 @@ export type ApiJobStatus =
   | 'CANCELLED';
 
 export type ApiLine = {
+  scope?: { name: string; description: string | null; quantity: number }[];
   id: string;
   kind: 'LABOUR' | 'PART' | 'FEE';
   description: string;
@@ -321,6 +329,8 @@ export type ApiBookingOptions = {
 export type ApiSlotDay = { date: string; closed: boolean; slots: ApiSlot[] };
 
 export type ApiOffering = {
+  version: number;
+  serviceDefinitionId: string | null;
   id: string;
   name: string;
   description: string | null;
