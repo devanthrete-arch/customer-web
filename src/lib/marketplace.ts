@@ -1,5 +1,30 @@
 import { autoflex } from './api';
-import type { ApiCenterDetail, ApiOffering } from '../domain/api-types';
+import type { ApiCenterDetail, ApiGarageVehicle, ApiOffering } from '../domain/api-types';
+export type VehicleType = ApiGarageVehicle['vehicleType'];
+export const VEHICLE_TYPES: VehicleType[] = ['TWO_WHEELER', 'FOUR_WHEELER'];
+export function compatibleVehicleTypes(
+  choices: Pick<Choice, 'vehicleType' | 'vehicleTypes'>[],
+  supported: readonly string[] = VEHICLE_TYPES,
+): VehicleType[] {
+  return VEHICLE_TYPES.filter(
+    (type) =>
+      supported.includes(type) &&
+      choices.every((item) =>
+        item.vehicleTypes
+          ? item.vehicleTypes.includes(type)
+          : !item.vehicleType || item.vehicleType === type,
+      ),
+  );
+}
+export function menuSelections(
+  choices: { id: string; kind?: 'SERVICE' | 'PACKAGE'; version?: number }[],
+) {
+  return choices.map((item) => {
+    if (!Number.isInteger(item.version) || item.version! < 1)
+      throw new Error('Review the current services and prices before continuing.');
+    return { id: item.id, kind: item.kind ?? 'SERVICE', version: item.version! };
+  });
+}
 export type ServiceDefinition = {
   id: string;
   name: string;

@@ -183,6 +183,11 @@ export const marketplaceApi = {
     ),
   bookingOptions: (centerId: string) =>
     autoflex<ApiBookingOptions>(`/v1/centers/${centerId}/booking-options`),
+  validateSelection: (centerId: string, selections: { kind: 'SERVICE' | 'PACKAGE'; id: string; version: number }[], vehicleType?: ApiGarageVehicle['vehicleType']) =>
+    autoflex<{ vehicleTypes: ApiGarageVehicle['vehicleType'][] }>(
+      `/v1/centers/${centerId}/booking-selection`,
+      { method: 'POST', body: JSON.stringify({ selections, ...(vehicleType ? { vehicleType } : {}) }) },
+    ),
   slots: (centerId: string, date: string) =>
     autoflex<ApiSlotDay>(`/v1/centers/${centerId}/slots?date=${date}`),
 };

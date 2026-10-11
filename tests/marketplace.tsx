@@ -11,11 +11,12 @@ import type {
 } from '../src/domain/api-types';
 import {
   exploreApi,
+  compatibleVehicleTypes,
   type CenterResult,
   type Choice,
   type ServiceDefinition,
 } from '../src/lib/marketplace';
-import { getDraft, patchDraft, clearDraft } from '../src/lib/booking';
+import { getDraft, patchDraft, clearDraft, marketplaceBack } from '../src/lib/booking';
 import { ExploreCenterScreen, ExploreScreen } from '../src/screens/ExploreScreens';
 import { DiscoveryLocationProvider } from '../src/location/DiscoveryLocation';
 import type { DiscoveryLocation } from '../src/lib/discovery-location';
@@ -148,6 +149,20 @@ marketplaceApi.center = async (id) =>
   } as ApiCenterDetail);
 marketplaceApi.bookingOptions = async () =>
   ({ autoAccept: true, modes: [{ estimateInr: '999.00' }] }) as ApiBookingOptions;
+const validateSelection = async (id: string, selections: { id: string; kind: 'SERVICE' | 'PACKAGE'; version: number }[], type?: 'TWO_WHEELER' | 'FOUR_WHEELER') => {
+  const rows = await exploreApi.menu(id);
+  const selected = selections.map((pick) => {
+    const row = rows.find((row) => row.id === pick.id && row.kind === pick.kind);
+    if (!row) throw new Error('Selected work is unavailable. Review the menu.');
+    if (row.version !== pick.version) throw new Error('Price or scope changed. Review the current menu.');
+    return row;
+  });
+  const center = await marketplaceApi.center(id);
+  const vehicleTypes = compatibleVehicleTypes(selected, center.supportedVehicleTypes).filter((t) => !type || t === type);
+  if (!vehicleTypes.length) throw new Error('These selections cannot be serviced on one vehicle.');
+  return { vehicleTypes };
+};
+marketplaceApi.validateSelection = validateSelection;
 exploreApi.menu = async (id, type) => {
   if (serviceMenus)
     return (serviceMenus.get(id) ?? []).filter(
@@ -208,6 +223,7 @@ async function mount(path: string, initialLocation: DiscoveryLocation = {
                 <Route path="/services/book/center" element={<ExploreScreen booking />} />
                 <Route path="/services/book/services" element={<BookServicesScreen />} />
                 <Route path="/services/book/issue" element={<BookIssueScreen />} />
+                <Route path="/services/book/schedule" element={<p>Choose an appointment</p>} />
                 <Route path="/vehicles/new" element={<VehicleAddScreen />} />
               </Routes>
             </DiscoveryLocationProvider>
@@ -303,13 +319,15 @@ async function link(name: string) {
 async function fill(label: string, value: string) {
   const element = [...fixture.querySelectorAll('label')]
     .find((l) => l.firstChild?.textContent?.trim() === label)
-    ?.querySelector('input,select') as HTMLInputElement | HTMLSelectElement;
+    ?.querySelector('input,select,textarea') as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
   check(element, `Missing field ${label}`);
   await act(async () => {
     Object.getOwnPropertyDescriptor(
       element instanceof HTMLSelectElement
         ? HTMLSelectElement.prototype
-        : HTMLInputElement.prototype,
+        : element instanceof HTMLTextAreaElement
+          ? HTMLTextAreaElement.prototype
+          : HTMLInputElement.prototype,
       'value',
     )!.set!.call(element, value);
     element.dispatchEvent(
@@ -324,7 +342,10 @@ try {
   await click('Book at this center');
   check(location === '/services/book/vehicle', 'Vehicle must be requested at booking');
   await link('Add vehicle');
-  check(location === '/vehicles/new?return=booking', 'Add flow lost return context');
+  check(
+    location === '/vehicles/new?return=booking&vehicleType=TWO_WHEELER',
+    'Add flow lost the return context or the required vehicle type',
+  );
   await fill('Vehicle type', 'TWO_WHEELER');
   await fill('Registration number', 'KA01XX1234');
   await fill('Make', 'Honda');
@@ -387,6 +408,7 @@ try {
     slotStart: '2027-06-15T03:30:00Z',
   });
   await mount('/services/book/vehicle?vehicleId=car');
+  check(fixture.querySelector('a[aria-label="Back"]')?.getAttribute('href') === '/services', 'Fresh vehicle entry inherited the previous center Back link');
   await click('Continue');
   check(
     location.startsWith('/services/book/center?') && queryParams().get('city') === 'Bengaluru' &&
@@ -400,6 +422,318 @@ try {
     'Vehicle-first listing must filter the saved vehicle type',
   );
   pass('Fresh vehicle-first entry resets unrelated work and filters centers by the saved vehicle.');
+
+  const carChoice: Choice = {
+    ...choice,
+    id: '20000000-0000-4000-8000-000000000099',
+    name: 'Foam cleaning',
+    vehicleType: 'FOUR_WHEELER',
+    scope: [
+      {
+        offeringId: 'foam-cleaning',
+        serviceDefinitionId: 'foam-cleaning',
+        name: 'Foam cleaning',
+        description: 'Interior cleaning',
+        quantity: 1,
+      },
+    ],
+  };
+  serviceMenus = new Map([[centerId, [{ ...choice, vehicleType: 'TWO_WHEELER' }, carChoice]]]);
+  clearDraft();
+  await mount(`/explore/centers/${centerId}`);
+  const mixedTypeChoices = fixture.querySelectorAll<HTMLInputElement>('input[type=checkbox]');
+  await act(async () => mixedTypeChoices[0].click());
+  check(
+    mixedTypeChoices[0].checked && mixedTypeChoices[1].disabled,
+    'Choosing two-wheeler work must disable incompatible four-wheeler work before a vehicle is chosen',
+  );
+  await click('Book at this center');
+  check(
+    location === '/services/book/vehicle' &&
+      getDraft().requiredVehicleType === 'TWO_WHEELER' &&
+      !fixture.textContent?.includes('Hyundai'),
+    'Vehicle selection must retain the required type and exclude incompatible vehicles',
+  );
+  const bookingBack = fixture.querySelector<HTMLAnchorElement>('a[aria-label="Back"]');
+  check(bookingBack, 'Missing vehicle-selection back link');
+  await act(async () => bookingBack!.click());
+  const resumedChoices = fixture.querySelectorAll<HTMLInputElement>('input[type=checkbox]');
+  check(
+    location.includes(`/explore/centers/${centerId}`) &&
+      location.includes('booking=1') &&
+      resumedChoices[0].checked &&
+      resumedChoices[1].disabled,
+    'Back from vehicle selection must restore the selected center and its type-locked work',
+  );
+
+  const menuCheckbox = (name: string) =>
+    [...fixture.querySelectorAll<HTMLLabelElement>('.af-menu-choice')]
+      .find((label) => label.querySelector('.af-menu-choice-copy b')?.textContent === name)!
+      .querySelector<HTMLInputElement>('input')!;
+  await act(async () => menuCheckbox(choice.name).click());
+  check(!menuCheckbox(carChoice.name).disabled, 'Removing typed work must unlock the other type');
+  await act(async () => menuCheckbox(carChoice.name).click());
+  check(
+    menuCheckbox(choice.name).disabled && !menuCheckbox(carChoice.name).disabled,
+    'Vehicle lock must work in both directions',
+  );
+  pass(
+    'Removing the last typed choice unlocks the other vehicle type, with symmetric constraints.',
+  );
+
+  await click('Not sure what you need? Describe an issue instead');
+  check(
+    !getDraft().requiredVehicleType &&
+      !getDraft().offerings?.length &&
+      getDraft().compatibleVehicleTypes?.length === 2 &&
+      fixture.textContent?.includes('Hyundai'),
+    'Issue-only path retained a previous work lock',
+  );
+  pass(
+    'Describe-an-issue clears previous selected work and permits every type the center supports.',
+  );
+
+  patchDraft({
+    entry: 'MARKETPLACE',
+    centerId,
+    offerings: [
+      { ...choice, priceInr: 500.25 },
+      { ...carChoice, priceInr: 500.25 },
+    ],
+    compatibleVehicleTypes: [],
+  });
+  await mount(`/explore/centers/${centerId}?booking=1`);
+  check(
+    button('Book at this center').disabled &&
+      !menuCheckbox(choice.name).disabled &&
+      !menuCheckbox(carChoice.name).disabled,
+    'Contradictory restored cart must block booking and allow removals',
+  );
+  await act(async () => menuCheckbox(carChoice.name).click());
+  check(
+    !button('Book at this center').disabled,
+    'Removing incompatible saved work must recover the cart',
+  );
+  pass(
+    'Contradictory restored selections stay visible and removable; the cart cannot progress while mixed.',
+  );
+
+  const generic = {
+    ...service('shared-wash', 'Shared wash'),
+    vehicleTypes: ['TWO_WHEELER', 'FOUR_WHEELER'] as ('TWO_WHEELER' | 'FOUR_WHEELER')[],
+  };
+  serviceMenus = new Map([[centerId, [generic, choice, carChoice]]]);
+  patchDraft({
+    entry: 'MARKETPLACE',
+    centerId,
+    vehicleId: vehicles[0].id,
+    vehicleType: 'TWO_WHEELER',
+    offerings: [{ ...generic, priceInr: 499 }],
+    requiredVehicleType: undefined,
+    compatibleVehicleTypes: ['TWO_WHEELER', 'FOUR_WHEELER'],
+  });
+  await mount('/services/book/services');
+  await act(async () => menuCheckbox(choice.name).click());
+  await click('Confirm these selections');
+  check(
+    getDraft().requiredVehicleType === 'TWO_WHEELER',
+    'Review additions did not constrain future vehicle changes',
+  );
+  await mount('/services/book/services');
+  await act(async () => menuCheckbox(choice.name).click());
+  await click('Confirm these selections');
+  check(
+    !getDraft().requiredVehicleType && getDraft().compatibleVehicleTypes?.length === 2,
+    'Review removals retained the old type lock',
+  );
+  pass(
+    'Review edits recalculate compatibility; shared work remains eligible for both types when typed work is removed.',
+  );
+
+  const notes = 'Please check the clicking sound when I turn left.';
+  const resumedCenter = `/explore/centers/${centerId}?booking=1&vehicleId=${vehicles[0].id}`;
+  await mount('/services/book/issue');
+  await fill('Anything else? (optional)', notes);
+  await click('Continue');
+  check(location === '/services/book/schedule', 'Writing notes did not advance to the appointment');
+  for (const action of ['add', 'remove']) {
+    patchDraft({ slotStart: '2027-06-15T03:30:00Z', slotEnd: '2027-06-15T04:30:00Z' });
+    await mount(resumedCenter);
+    await act(async () => menuCheckbox(choice.name).click());
+    await click('Book at this center');
+    check(getDraft().issueDescription === notes, `${action} service erased the saved notes`);
+    check(!getDraft().slotStart && !getDraft().slotEnd, `${action} service retained the old appointment`);
+    check(getDraft().offerings?.length === (action === 'add' ? 2 : 1), 'Menu edit lost selected work');
+    await click('Confirm these selections');
+    check(fixture.querySelector<HTMLTextAreaElement>('textarea')?.value === notes, 'Issue screen lost notes after a menu revision');
+  }
+  pass('Adding or removing work on a resumed center menu preserves typed notes and clears both appointment boundaries.');
+
+  patchDraft({ slotStart: '2027-06-15T03:30:00Z', slotEnd: '2027-06-15T04:30:00Z' });
+  await mount(resumedCenter);
+  await click('Not sure what you need? Describe an issue instead');
+  check(getDraft().issueDescription === notes && !getDraft().offerings?.length && !getDraft().slotStart, 'Issue-only revision erased notes or retained the old scope/appointment');
+  await click('Describe the issue');
+  check(fixture.querySelector<HTMLTextAreaElement>('textarea')?.value === notes, 'Issue-only screen did not restore saved notes');
+  pass('Switching an existing booking to the issue-only path retains its notes while releasing selected work and appointment.');
+
+  for (const oldCenter of [centerId, 'unrelated-center']) {
+    patchDraft({ centerId: oldCenter, issueDescription: notes, slotStart: '2027-06-15T03:30:00Z', slotEnd: '2027-06-15T04:30:00Z' });
+    await mount(`/explore/centers/${centerId}${oldCenter === centerId ? '' : '?booking=1'}`);
+    await act(async () => menuCheckbox(generic.name).click());
+    await click('Book at this center');
+    check(!getDraft().issueDescription && !getDraft().slotStart && !getDraft().slotEnd, 'A fresh booking inherited unrelated notes or appointment');
+  }
+  pass('Fresh center bookings and a resume flag for a different center do not inherit an old booking’s notes.');
+
+  const restricted = {
+    ...generic,
+    id: 'restricted-shared',
+    name: 'Catalog-restricted work',
+    vehicleType: null,
+    vehicleTypes: ['TWO_WHEELER'] as ('TWO_WHEELER' | 'FOUR_WHEELER')[],
+  };
+  serviceMenus = new Map([[centerId, [restricted, carChoice]]]);
+  clearDraft();
+  await mount(`/explore/centers/${centerId}`);
+  await act(async () => menuCheckbox(restricted.name).click());
+  check(
+    menuCheckbox(carChoice.name).disabled && fixture.textContent?.includes('Two-wheeler'),
+    'Untyped offering ignored its effective catalog restriction',
+  );
+  pass(
+    'An untyped service uses server-provided catalog and center compatibility rather than assuming both types.',
+  );
+
+  const originalValidation = marketplaceApi.validateSelection;
+  marketplaceApi.validateSelection = async () => {
+    throw new Error('Network unavailable');
+  };
+  await click('Book at this center');
+  check(
+    location.includes('/explore/centers/') &&
+      menuCheckbox(restricted.name).checked &&
+      fixture.textContent?.includes('Network unavailable'),
+    'Failed preflight lost selected work or advanced the journey',
+  );
+  marketplaceApi.validateSelection = originalValidation;
+  await click('Retry');
+  check(menuCheckbox(restricted.name).checked, 'Retry lost unsaved choices');
+  await click('Book at this center');
+  check(location === '/services/book/vehicle', 'Preflight recovery did not resume booking');
+  pass('Server/network validation failures preserve the selected work and retry checks it again.');
+
+  serviceMenus = new Map([[centerId, []]]);
+  await mount(`/explore/centers/${centerId}?booking=1`);
+  check(
+    button('Book at this center').disabled && fixture.textContent?.includes('no longer available'),
+    'Unavailable restored work disappeared without explanation',
+  );
+  await click('Remove this selection');
+  check(!fixture.textContent?.includes('no longer available'), 'Missing work could not be removed');
+  pass('Unavailable restored work is explained and requires explicit removal.');
+
+  serviceMenus = new Map([[centerId, [choice, carChoice]]]);
+  patchDraft({
+    entry: 'MARKETPLACE',
+    centerId,
+    offerings: [{ ...choice, version: 1, priceInr: 450.5 }],
+    requiredVehicleType: 'TWO_WHEELER',
+    compatibleVehicleTypes: ['TWO_WHEELER'],
+  });
+  await mount('/services/book/vehicle');
+  check(
+    button('Continue').disabled && fixture.textContent?.includes('Price or scope changed'),
+    'Vehicle step accepted stale menu versions',
+  );
+  pass('Vehicle selection rechecks saved versions on the server and blocks a stale cart.');
+
+  patchDraft({ offerings: [{ ...choice, priceInr: 500.25 }] });
+  await mount('/vehicles/new?return=booking&vehicleType=FOUR_WHEELER');
+  check(
+    fixture.querySelector<HTMLSelectElement>('select')?.value === 'TWO_WHEELER' &&
+      fixture.querySelector<HTMLSelectElement>('select')?.disabled,
+    'Tampered Add-vehicle query changed the booking constraint',
+  );
+  await mount('/vehicles/new?vehicleType=TWO_WHEELER');
+  check(
+    !fixture.querySelector<HTMLSelectElement>('select')?.disabled,
+    'Standalone garage creation should allow either type',
+  );
+  pass(
+    'The Add-vehicle constraint comes from the booking draft; standalone vehicle creation remains unrestricted.',
+  );
+
+  sessionStorage.setItem(
+    'af_booking_draft',
+    JSON.stringify({ entry: 'MARKETPLACE', centerId, marketplaceCenterPath: 42 }),
+  );
+  check(
+    Object.keys(getDraft()).length === 0,
+    'Malformed persisted route should be rejected safely',
+  );
+  for (const invalid of [{ compatibleVehicleTypes: 0 }, { compatibleVehicleTypes: null }, { offerings: 0 }, { offerings: null }]) {
+    sessionStorage.setItem('af_booking_draft', JSON.stringify(invalid));
+    check(Object.keys(getDraft()).length === 0, 'Malformed persisted collection should be rejected safely');
+  }
+  await mount('/services/book/vehicle');
+  check(
+    fixture.querySelector('a[aria-label="Back"]')?.getAttribute('href') === '/services',
+    'Malformed route broke the vehicle screen',
+  );
+  pass(
+    'Malformed persisted navigation data is rejected without crashing or following an unrelated Back route.',
+  );
+
+  clearDraft();
+  serviceMenus = new Map([[centerId, [choice, carChoice]]]);
+  await mount(`/explore/centers/${centerId}`);
+  await act(async () => menuCheckbox(choice.name).click());
+  let finishValidation!: (value: { vehicleTypes: ('TWO_WHEELER' | 'FOUR_WHEELER')[] }) => void;
+  marketplaceApi.validateSelection = () =>
+    new Promise((resolve) => {
+      finishValidation = resolve;
+    });
+  await click('Book at this center');
+  check(button('Preparing booking…').disabled, 'Pending validation must block double submission');
+  const pendingBack = fixture.querySelector<HTMLAnchorElement>('a[aria-label="Back"]')!;
+  await act(async () => pendingBack.click());
+  await act(async () => finishValidation({ vehicleTypes: ['TWO_WHEELER'] }));
+  check(
+    location.startsWith('/explore?') && !getDraft().centerId,
+    'Late validation navigated back into booking or changed the draft after leaving',
+  );
+  marketplaceApi.validateSelection = originalValidation;
+  pass(
+    'A delayed server response after leaving the center is ignored and cannot overwrite the draft or navigate.',
+  );
+
+  patchDraft({
+    entry: 'MARKETPLACE',
+    centerId,
+    vehicleId: vehicles[0].id,
+    vehicleType: 'TWO_WHEELER',
+    offerings: [{ ...choice, priceInr: 500.25 }],
+    compatibleVehicleTypes: ['TWO_WHEELER'],
+  });
+  vehicles[0] = { ...vehicles[0], status: 'ARCHIVED' };
+  await mount('/services/book/services');
+  check(
+    location === '/services/book/vehicle' && fixture.textContent?.includes('Add a two-wheeler'),
+    'A later booking step accepted an archived saved vehicle',
+  );
+  vehicles[0] = { ...vehicles[0], status: 'ACTIVE' };
+  pass(
+    'An archived vehicle is excluded and later booking steps return to a compatible active vehicle choice.',
+  );
+  const updatedBack = marketplaceBack({ entry: 'MARKETPLACE', centerId, vehicleId: 'car', vehicleType: 'FOUR_WHEELER', marketplaceCenterPath: `/explore/centers/${centerId}?vehicleId=old-bike&vehicleType=TWO_WHEELER&serviceIds=${oilId}&serviceIds=${brakeId}` });
+  const updatedBackParams = new URLSearchParams(updatedBack.split('?')[1]);
+  check(updatedBackParams.get('vehicleId') === 'car' && updatedBackParams.get('vehicleType') === 'FOUR_WHEELER' && updatedBackParams.get('booking') === '1' && updatedBackParams.getAll('serviceIds').length === 2, 'Return route retained an old vehicle or lost repeated requested-service filters');
+  pass('The return menu follows the chosen vehicle while preserving every requested-service filter.');
+  serviceMenus = null;
+  pass(
+    'A first vehicle-specific service locks incompatible work, constrains vehicle choice, and restores the center menu on Back.',
+  );
 
   await mount('/explore');
   check(

@@ -6,10 +6,14 @@ export function MenuChoices({
   menu,
   picked,
   toggle,
+  disabled,
+  busy = false,
 }: {
   menu: Choice[];
   picked: Set<string>;
   toggle: (key: string) => void;
+  disabled?: (item: Choice) => boolean;
+  busy?: boolean;
 }) {
   return (
     <>
@@ -27,12 +31,13 @@ export function MenuChoices({
             <div className="af-menu-list">
               {rows.map((item) => (
                 <label
-                  className={`af-menu-choice ${picked.has(choiceKey(item)) ? 'is-selected' : ''}`}
+                  className={`af-menu-choice ${picked.has(choiceKey(item)) ? 'is-selected' : ''} ${disabled?.(item) ? 'is-disabled' : ''}`}
                   key={choiceKey(item)}
                 >
                   <input
                     type="checkbox"
                     checked={picked.has(choiceKey(item))}
+                    disabled={busy || disabled?.(item)}
                     onChange={() => toggle(choiceKey(item))}
                   />
                   <span className="af-menu-choice-photos" aria-hidden="true">
@@ -44,11 +49,16 @@ export function MenuChoices({
                     <b>{item.name}</b>
                     <small>{item.description}</small>
                     <small>
-                      {item.vehicleType
-                        ? vehicleTypeLabel(item.vehicleType)
-                        : 'Center-supported vehicles'}{' '}
+                      {item.vehicleTypes
+                        ? item.vehicleTypes.map(vehicleTypeLabel).join(' · ')
+                        : item.vehicleType
+                          ? vehicleTypeLabel(item.vehicleType)
+                          : 'Center-supported vehicles'}{' '}
                       · About {item.durationMinutes} minutes
                     </small>
+                    {disabled?.(item) ? (
+                      <small>Choose a separate booking for this vehicle type.</small>
+                    ) : null}
                     {kind === 'PACKAGE' && (
                       <ul>
                         {item.scope.map((part) => (

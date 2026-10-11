@@ -3312,7 +3312,9 @@ h1,
   transition: border-color 180ms ease, background-color 180ms ease;
 }
 .af-menu-choice.is-selected { border-color: var(--af-accent); background: color-mix(in srgb, var(--af-accent) 7%, var(--af-surface)); }
+.af-menu-choice.is-disabled { opacity: .52; cursor: not-allowed; }
 .af-menu-choice > input { width: 20px; height: 20px; margin: 3px 0 0; accent-color: var(--af-accent); cursor: pointer; }
+.af-menu-choice.is-disabled > input { cursor: not-allowed; }
 .af-menu-choice-photos { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 3px; height: 104px; border-radius: 10px; overflow: hidden; }
 .af-menu-choice-photos .af-market-image { height: 100%; aspect-ratio: auto; }
 .af-menu-choice-copy { min-width: 0; }

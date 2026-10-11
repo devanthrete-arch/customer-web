@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { BodyMark, FuelMark } from '../components/VehicleMarks';
 import { useDomain } from '../domain/DomainProvider';
 import { customerApi, type VehicleInput } from '../domain/client';
+import { getDraft } from '../lib/booking';
 import type { ApiCatalogConfiguration, ApiVehicleCatalog } from '../domain/api-types';
 import {
   expiryLabel,
@@ -162,10 +163,12 @@ function VehicleFields({
   form,
   setForm,
   useCatalog,
+  fixedVehicleType,
 }: {
   form: VehicleForm;
   setForm: (form: VehicleForm) => void;
   useCatalog: boolean;
+  fixedVehicleType?: VehicleInput['vehicleType'];
 }) {
   const [catalog, setCatalog] = useState<ApiVehicleCatalog | null>(null);
   const [catalogError, setCatalogError] = useState('');
@@ -261,6 +264,7 @@ function VehicleFields({
         Vehicle type
         <select
           value={form.vehicleType}
+          disabled={Boolean(fixedVehicleType)}
           onChange={(event) =>
             setForm({
               ...form,
@@ -410,12 +414,30 @@ export function VehicleAddScreen() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const returnToBooking = params.get('return') === 'booking';
-  const [form, setForm] = useState<VehicleForm>(emptyForm);
+  const draft = getDraft();
+  const requiredVehicleType = returnToBooking
+    ? draft.compatibleVehicleTypes?.length === 1
+      ? draft.compatibleVehicleTypes[0]
+      : draft.requiredVehicleType
+    : undefined;
+  const [form, setForm] = useState<VehicleForm>(() => ({
+    ...emptyForm,
+    ...(requiredVehicleType
+      ? {
+          vehicleType: requiredVehicleType,
+          fuel: requiredVehicleType === 'TWO_WHEELER' ? 'Petrol' : '',
+        }
+      : {}),
+  }));
   const { busy, error, run } = useAction();
 
   function save(event: FormEvent) {
     event.preventDefault();
     void run(async () => {
+      if (requiredVehicleType && form.vehicleType !== requiredVehicleType)
+        throw new Error(
+          'Add a vehicle compatible with your selected work, or return and change your selections.',
+        );
       if (form.vehicleType === 'FOUR_WHEELER' && !form.catalogConfigurationId) {
         throw new Error('Choose the make, model, and variant.');
       }
@@ -431,9 +453,17 @@ export function VehicleAddScreen() {
 
   return (
     <section className="af-screen af-form">
-      <PageHeader title="Add vehicle" back={returnToBooking ? '/services/book/vehicle' : '/vehicles'} />
+      <PageHeader
+        title="Add vehicle"
+        back={returnToBooking ? '/services/book/vehicle' : '/vehicles'}
+      />
       <form onSubmit={save}>
-        <VehicleFields form={form} setForm={setForm} useCatalog={form.vehicleType === 'FOUR_WHEELER'} />
+        <VehicleFields
+          form={form}
+          setForm={setForm}
+          useCatalog={form.vehicleType === 'FOUR_WHEELER'}
+          fixedVehicleType={requiredVehicleType}
+        />
         <ErrorText error={error} />
         <button className="af-btn" type="submit" disabled={busy}>
           {busy ? 'Saving…' : 'Save vehicle'}

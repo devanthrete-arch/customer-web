@@ -345,6 +345,8 @@ export type ApiOffering = {
   priceIsStarting: boolean;
   durationMinutes: number;
   vehicleType: string | null;
+  /** Effective intersection of the center, offering and catalog definition. */
+  vehicleTypes?: ApiGarageVehicle['vehicleType'][];
   categoryName: string | null;
 };
 

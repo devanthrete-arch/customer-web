@@ -1,7 +1,15 @@
 import { ExploreScreen } from './ExploreScreens';
 import { MenuChoices } from '../components/MenuChoices';
-import { choiceKey, exploreApi, overlappingChoices, type Choice } from '../lib/marketplace';
-import { useEffect, useState, type ReactNode } from 'react';
+import {
+  choiceKey,
+  exploreApi,
+  menuSelections,
+  overlappingChoices,
+  VEHICLE_TYPES,
+  type Choice,
+  type VehicleType,
+} from '../lib/marketplace';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { useDomain } from '../domain/DomainProvider';
 import type { ApiSlotDay, BookingEligibilityCode } from '../domain/api-types';
@@ -11,7 +19,15 @@ import {
 } from '../components/BookingEligibility';
 import { marketplaceApi } from '../domain/client';
 import { ApiError, errorMessage } from '../lib/api';
-import { clearDraft, draftEstimate, getDraft, patchDraft, type BookingDraft } from '../lib/booking';
+import {
+  clearDraft,
+  draftEstimate,
+  getDraft,
+  marketplaceBack,
+  patchDraft,
+  selectionDraft,
+  type BookingDraft,
+} from '../lib/booking';
 import { formatInr, formatSlot, formatWhen } from '../lib/format';
 import { ErrorText, PageHeader, istToday, useAction } from './ui';
 
@@ -43,14 +59,23 @@ function BookingShell({
 }
 
 /** Sends the user back to the first step the draft has not completed. */
-function useDraftGuard(required: (keyof BookingDraft)[]): { draft: BookingDraft; redirect: string | null } {
+function useDraftGuard(required: (keyof BookingDraft)[]): {
+  draft: BookingDraft;
+  redirect: string | null;
+} {
+  const { state } = useDomain();
   const draft = getDraft();
   const order: [keyof BookingDraft, string][] = [
     ['vehicleId', '/services/book/vehicle'],
     ['centerId', '/services/book/center'],
     ['slotStart', '/services/book/schedule'],
   ];
-  const missing = order.find(([key]) => required.includes(key) && !draft[key]);
+  const vehicle = state.vehicles.find((item) => item.id === draft.vehicleId);
+  const invalidVehicle =
+    !vehicle || vehicle.status !== 'ACTIVE' || vehicle.vehicleType !== draft.vehicleType;
+  const missing = order.find(
+    ([key]) => required.includes(key) && (!draft[key] || (key === 'vehicleId' && invalidVehicle)),
+  );
   return { draft, redirect: missing ? missing[1] : null };
 }
 
@@ -58,26 +83,118 @@ export function BookVehicleScreen() {
   const { state } = useDomain();
   const navigate = useNavigate();
   const [params] = useSearchParams();
+  const draft = getDraft();
+  const freshVehicleEntry = params.has('vehicleId') && params.get('resume') !== '1';
+  const [checkedTypes, setCheckedTypes] = useState<VehicleType[] | null>(null);
+  const [error, setError] = useState('');
+  const [checking, setChecking] = useState(false);
+  const [revision, setRevision] = useState(0);
+  const needsCheck = !freshVehicleEntry && !!draft.centerId;
+  const selectionsKey = JSON.stringify(draft.offerings ?? []);
+  useEffect(() => {
+    let live = true;
+    setCheckedTypes(null);
+    setError('');
+    setChecking(needsCheck);
+    if (needsCheck) {
+      Promise.resolve()
+        .then(() =>
+          marketplaceApi.validateSelection(draft.centerId!, menuSelections(draft.offerings ?? [])),
+        )
+        .then((result) => {
+          if (live) {
+            patchDraft({
+              compatibleVehicleTypes: result.vehicleTypes,
+              requiredVehicleType:
+                draft.offerings?.length && result.vehicleTypes.length === 1
+                  ? result.vehicleTypes[0]
+                  : undefined,
+            });
+            setCheckedTypes(result.vehicleTypes);
+          }
+        })
+        .catch((e) => {
+          if (live) setError(errorMessage(e));
+        })
+        .finally(() => {
+          if (live) setChecking(false);
+        });
+    }
+    return () => {
+      live = false;
+    };
+  }, [needsCheck, draft.centerId, selectionsKey, revision]);
+  const allowedTypes = freshVehicleEntry
+    ? VEHICLE_TYPES
+    : (checkedTypes ??
+      draft.compatibleVehicleTypes ??
+      (draft.requiredVehicleType ? [draft.requiredVehicleType] : VEHICLE_TYPES));
+  const requiredVehicleType = allowedTypes.length === 1 ? allowedTypes[0] : undefined;
   const vehicles = state.vehicles.filter((item) => item.status === 'ACTIVE');
+  const compatibleVehicles = vehicles.filter((item) => allowedTypes.includes(item.vehicleType));
   const busyVehicleIds = new Set(
     state.services.filter((item) => item.isActive && item.vehicleId).map((item) => item.vehicleId),
   );
-  const [selected, setSelected] = useState(params.get('vehicleId') ?? getDraft().vehicleId ?? vehicles[0]?.id);
+  const [selected, setSelected] = useState(() =>
+    compatibleVehicles.some((item) => item.id === params.get('vehicleId'))
+      ? params.get('vehicleId')!
+      : compatibleVehicles.some((item) => item.id === draft.vehicleId)
+        ? draft.vehicleId
+        : compatibleVehicles[0]?.id,
+  );
+  const vehicleIds = compatibleVehicles.map((item) => item.id).join(',');
+  const requestedVehicleId = params.get('vehicleId');
+  useEffect(() => {
+    setSelected((old) =>
+      compatibleVehicles.some((item) => item.id === requestedVehicleId)
+        ? requestedVehicleId!
+        : compatibleVehicles.some((item) => item.id === old)
+          ? old
+          : compatibleVehicles[0]?.id,
+    );
+  }, [vehicleIds, requestedVehicleId]);
+  const back = freshVehicleEntry ? '/services' : marketplaceBack(draft);
 
-  if (vehicles.length === 0) {
+  const validationStatus = (
+    <>
+      {checking && <p role="status">Checking which vehicles can receive this work…</p>}
+      <ErrorText error={error} />
+      {error && (
+        <>
+          <button onClick={() => setRevision((n) => n + 1)}>Check selection again</button>
+          <Link to={back}>Review selected work</Link>
+        </>
+      )}
+    </>
+  );
+
+  if (compatibleVehicles.length === 0) {
     return (
-      <BookingShell step={1} title="Which vehicle needs service?" back="/services">
-        <p className="af-note">Add a vehicle first. It takes under a minute.</p>
-        <Link className="af-btn" to="/vehicles/new?return=booking">
-          Add vehicle
-        </Link>
+      <BookingShell step={1} title="Which vehicle needs service?" back={back}>
+        {validationStatus}
+        {!error && !checking && (
+          <p className="af-note">
+            {requiredVehicleType
+              ? `Add a ${requiredVehicleType === 'TWO_WHEELER' ? 'two-wheeler' : 'four-wheeler'} for the work you selected.`
+              : 'Add a vehicle first. It takes under a minute.'}
+          </p>
+        )}
+        {!error && !checking && (
+          <Link
+            className="af-btn"
+            to={`/vehicles/new?return=booking${requiredVehicleType ? `&vehicleType=${requiredVehicleType}` : ''}`}
+          >
+            Add vehicle
+          </Link>
+        )}
       </BookingShell>
     );
   }
 
   return (
-    <BookingShell step={1} title="Which vehicle needs service?" back="/services">
-      {vehicles.map((vehicle) => (
+    <BookingShell step={1} title="Which vehicle needs service?" back={back}>
+      {validationStatus}
+      {compatibleVehicles.map((vehicle) => (
         <button
           className={`af-radio ${selected === vehicle.id ? 'on' : ''}`}
           key={vehicle.id}
@@ -93,14 +210,25 @@ export function BookVehicleScreen() {
           </span>
         </button>
       ))}
-      <Link className="af-skip" to="/vehicles/new?return=booking">Add another vehicle</Link>
+      <Link
+        className="af-skip"
+        to={`/vehicles/new?return=booking${requiredVehicleType ? `&vehicleType=${requiredVehicleType}` : ''}`}
+      >
+        Add another vehicle
+      </Link>
       <button
         className="af-btn"
-        disabled={!selected}
+        disabled={
+          !selected ||
+          checking ||
+          !!error ||
+          (needsCheck && !checkedTypes) ||
+          !compatibleVehicles.some((item) => item.id === selected)
+        }
         onClick={() => {
-          const vehicle = vehicles.find((item) => item.id === selected);
-          if (!vehicle) return;
-          const previous = getDraft();
+          const vehicle = compatibleVehicles.find((item) => item.id === selected);
+          if (!vehicle || checking || error || (needsCheck && !checkedTypes)) return;
+          const previous = draft;
           const changed = previous.vehicleType !== vehicle.vehicleType;
           patchDraft({
             vehicleId: vehicle.id,
@@ -108,12 +236,17 @@ export function BookVehicleScreen() {
             vehicleType: vehicle.vehicleType,
             ...(changed ? { slotStart: undefined, slotEnd: undefined } : {}),
           });
-          const freshVehicleEntry = params.has('vehicleId') && params.get('resume') !== '1';
           if (freshVehicleEntry)
             patchDraft({
               entry: 'VEHICLE',
               centerId: undefined,
               centerName: undefined,
+              marketplaceCenterPath: undefined,
+              requiredVehicleType: undefined,
+              compatibleVehicleTypes: undefined,
+              centerAutoAccept: undefined,
+              baseEstimateInr: undefined,
+              issueDescription: undefined,
               offerings: [],
               slotStart: undefined,
               slotEnd: undefined,
@@ -141,6 +274,14 @@ export function BookServicesScreen() {
   const [menu, setMenu] = useState<Choice[] | null>(null);
   const [error, setError] = useState('');
   const [revision, setRevision] = useState(0);
+  const [busy, setBusy] = useState(false);
+  const attempt = useRef(0);
+  useEffect(
+    () => () => {
+      attempt.current += 1;
+    },
+    [draft.centerId, draft.vehicleId],
+  );
   const [picked, setPicked] = useState<Set<string>>(
     () => new Set((draft.offerings ?? []).map(choiceKey)),
   );
@@ -214,7 +355,7 @@ export function BookServicesScreen() {
           <button onClick={() => toggle(choiceKey(item))}>Remove this selection</button>
         </p>
       ))}
-      {menu && <MenuChoices menu={menu} picked={picked} toggle={toggle} />}
+      {menu && <MenuChoices menu={menu} picked={picked} toggle={toggle} busy={busy} />}
       {overlap && (
         <p role="alert">
           A service is included more than once. Remove an overlapping service or package.
@@ -230,23 +371,36 @@ export function BookServicesScreen() {
       )}
       <button
         className="af-btn"
-        disabled={!menu || !!error || !!missing.length || overlap || chosen.length > 10}
-        onClick={() => {
-          patchDraft({
-            offerings: chosen.map((item) => ({
-              id: item.id,
-              kind: item.kind,
-              version: item.version,
-              scope: item.scope,
-              name: item.name,
-              priceInr: Number(item.priceInr),
-              priceIsStarting: item.priceIsStarting,
-            })),
-          });
-          navigate('/services/book/issue');
+        disabled={busy || !menu || !!error || !!missing.length || overlap || chosen.length > 10}
+        onClick={async () => {
+          if (busy || !menu || error || missing.length || overlap || chosen.length > 10) return;
+          setBusy(true);
+          const request = ++attempt.current;
+          try {
+            // Do not narrow the stored cart to the chosen vehicle: shared work can still be moved to another type.
+            const checked = await marketplaceApi.validateSelection(
+              draft.centerId!,
+              menuSelections(chosen),
+            );
+            if (request !== attempt.current) return;
+            if (!draft.vehicleType || !checked.vehicleTypes.includes(draft.vehicleType))
+              throw new Error(
+                'This work is unavailable for your vehicle. Choose another vehicle or review the menu.',
+              );
+            patchDraft(selectionDraft(chosen, checked.vehicleTypes));
+            navigate('/services/book/issue');
+          } catch (e) {
+            if (request === attempt.current) setError(errorMessage(e));
+          } finally {
+            if (request === attempt.current) setBusy(false);
+          }
         }}
       >
-        {chosen.length ? 'Confirm these selections' : 'Describe the issue'}
+        {busy
+          ? 'Checking selections…'
+          : chosen.length
+            ? 'Confirm these selections'
+            : 'Describe the issue'}
       </button>
       <Link className="af-skip" to="/services/book/center">
         Choose another center
@@ -326,14 +480,27 @@ export function BookScheduleScreen() {
   const open = (day?.slots ?? []).filter((item) => item.available);
 
   return (
-    <BookingShell step={5} title="Pick a date and slot" subtitle={draft.centerName} back="/services/book/issue">
+    <BookingShell
+      step={5}
+      title="Pick a date and slot"
+      subtitle={draft.centerName}
+      back="/services/book/issue"
+    >
       <div className="af-days">
         {days.map((value) => {
           const noon = new Date(`${value}T12:00:00+05:30`);
           return (
-            <button className={date === value ? 'on' : ''} key={value} onClick={() => setDate(value)}>
-              <b>{noon.toLocaleDateString('en-IN', { day: 'numeric', timeZone: 'Asia/Kolkata' })}</b>
-              <small>{noon.toLocaleDateString('en-IN', { weekday: 'short', timeZone: 'Asia/Kolkata' })}</small>
+            <button
+              className={date === value ? 'on' : ''}
+              key={value}
+              onClick={() => setDate(value)}
+            >
+              <b>
+                {noon.toLocaleDateString('en-IN', { day: 'numeric', timeZone: 'Asia/Kolkata' })}
+              </b>
+              <small>
+                {noon.toLocaleDateString('en-IN', { weekday: 'short', timeZone: 'Asia/Kolkata' })}
+              </small>
             </button>
           );
         })}
@@ -410,12 +577,28 @@ export function BookReviewScreen() {
         <Summary label="Center" value={draft.centerName ?? ''} edit="/services/book/center" />
         <Summary
           label="Services"
-          value={offerings.length ? offerings.map((item) => item.name).join(', ') : 'Inspection and diagnosis'}
+          value={
+            offerings.length
+              ? offerings.map((item) => item.name).join(', ')
+              : 'Inspection and diagnosis'
+          }
           edit="/services/book/services"
         />
-        <Summary label="Your notes" value={draft.issueDescription || '—'} edit="/services/book/issue" />
-        <Summary label="Appointment" value={formatWhen(draft.slotStart!)} edit="/services/book/schedule" />
-        <Summary label="Arrival" value="You bring the vehicle to the center" edit="/services/book/center" />
+        <Summary
+          label="Your notes"
+          value={draft.issueDescription || '—'}
+          edit="/services/book/issue"
+        />
+        <Summary
+          label="Appointment"
+          value={formatWhen(draft.slotStart!)}
+          edit="/services/book/schedule"
+        />
+        <Summary
+          label="Arrival"
+          value="You bring the vehicle to the center"
+          edit="/services/book/center"
+        />
       </div>
       <div className="af-total">
         <span>Estimate{startsFrom ? ' (starting)' : ''}</span>
@@ -438,10 +621,17 @@ export function BookReviewScreen() {
         ))}
       <p className="af-hint">
         You pay at the center after the work is done. Any extra work needs your approval first.
-        {draft.centerAutoAccept === false ? ' The center confirms new bookings, usually within a few hours.' : ''}
+        {draft.centerAutoAccept === false
+          ? ' The center confirms new bookings, usually within a few hours.'
+          : ''}
       </p>
       <ErrorText error={error} />
-      {error && <Link to="/services/book/services">Review current services and prices</Link>}
+      {error && (
+        <>
+          <Link to="/services/book/services">Review current services and prices</Link>
+          <Link to="/services/book/vehicle">Choose another vehicle</Link>
+        </>
+      )}
       <button
         className="af-btn"
         disabled={busy}

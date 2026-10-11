@@ -19,9 +19,11 @@ import { MarketplaceImage } from '../components/MarketplaceImage';
 import { CenterGallery } from '../components/CenterGallery';
 import { servicePhoto } from '../lib/marketplace-imagery';
 import { errorMessage } from '../lib/api';
-import { getDraft, patchDraft } from '../lib/booking';
+import { getDraft, patchDraft, selectionDraft } from '../lib/booking';
 import {
   choiceKey,
+  compatibleVehicleTypes,
+  menuSelections,
   exploreApi,
   overlappingChoices,
   selectedServiceIds,
@@ -553,9 +555,7 @@ export function ExploreCenterScreen() {
   const [params] = useSearchParams();
   const returnTo = params.get('returnTo');
   const back =
-    returnTo &&
-    (returnTo.startsWith('/explore?') ||
-      returnTo.startsWith('/services/book/center?'))
+    returnTo && (returnTo.startsWith('/explore?') || returnTo.startsWith('/services/book/center?'))
       ? returnTo
       : '/explore';
   const { state } = useDomain();
@@ -572,11 +572,27 @@ export function ExploreCenterScreen() {
         : undefined);
   const [center, setCenter] = useState<ApiCenterDetail | null>(null);
   const [menu, setMenu] = useState<Choice[] | null>(null);
-  const [picked, setPicked] = useState(new Set<string>());
+  const resumeSelection =
+    params.get('booking') === '1' &&
+    getDraft().entry === 'MARKETPLACE' &&
+    getDraft().centerId === id;
+  const [picked, setPicked] = useState(() =>
+    resumeSelection ? new Set((getDraft().offerings ?? []).map(choiceKey)) : new Set<string>(),
+  );
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [revision, setRevision] = useState(0);
   const [definitions, setDefinitions] = useState<ServiceDefinition[]>([]);
+  const attempt = useRef(0);
+  useEffect(() => {
+    setBusy(false);
+    return () => {
+      attempt.current += 1;
+    };
+  }, [id, typeFilter]);
+  useEffect(() => {
+    setPicked(resumeSelection ? new Set((getDraft().offerings ?? []).map(choiceKey)) : new Set());
+  }, [id, typeFilter, resumeSelection]);
   const serviceIds = selectedServiceIds(params);
   useEffect(() => {
     let live = true;
@@ -592,7 +608,6 @@ export function ExploreCenterScreen() {
     let live = true;
     setCenter(null);
     setMenu(null);
-    setPicked(new Set());
     setError('');
     if (id)
       Promise.all([marketplaceApi.center(id), exploreApi.menu(id, typeFilter)])
@@ -606,49 +621,68 @@ export function ExploreCenterScreen() {
     return () => {
       live = false;
     };
-  }, [id, typeFilter, revision]);
+  }, [id, typeFilter, revision, resumeSelection]);
   const chosen = (menu ?? []).filter((item) => picked.has(choiceKey(item)));
+  const types = compatibleVehicleTypes(chosen, center?.supportedVehicleTypes ?? []);
+  const selectedVehicleType = chosen.length && types.length === 1 ? types[0] : undefined;
+  const missing =
+    menu && resumeSelection
+      ? (getDraft().offerings ?? []).filter(
+          (item) =>
+            picked.has(choiceKey(item)) && !menu.some((row) => choiceKey(row) === choiceKey(item)),
+        )
+      : [];
+  const changed =
+    resumeSelection &&
+    chosen.some((item) =>
+      getDraft().offerings?.some(
+        (old) => choiceKey(old) === choiceKey(item) && old.version !== item.version,
+      ),
+    );
   const overlaps = overlappingChoices(chosen);
   async function book(describeIssue = false) {
     if (
       !center ||
       !center.bookingEnabled ||
-      (!describeIssue && (!chosen.length || chosen.length > 10 || overlaps))
+      busy ||
+      (!describeIssue &&
+        (!chosen.length || chosen.length > 10 || overlaps || missing.length || !types.length))
     )
       return;
     setBusy(true);
     setError('');
+    const request = ++attempt.current;
     try {
-      const options = await marketplaceApi.bookingOptions(center.id);
+      const work = describeIssue ? [] : chosen;
+      const [options, checked] = await Promise.all([
+        marketplaceApi.bookingOptions(center.id),
+        marketplaceApi.validateSelection(center.id, menuSelections(work)),
+      ]);
+      if (request !== attempt.current) return;
+      if (vehicle && !checked.vehicleTypes.includes(vehicle.vehicleType))
+        throw new Error(
+          'This work is unavailable for your vehicle. Choose another vehicle or review the menu.',
+        );
+      const resumeParams = new URLSearchParams(params);
+      resumeParams.set('booking', '1');
       patchDraft({
         entry: 'MARKETPLACE',
         centerId: center.id,
         centerName: center.displayName,
+        marketplaceCenterPath: `/explore/centers/${center.id}?${resumeParams}`,
         centerAutoAccept: options.autoAccept,
         baseEstimateInr: Number(options.modes[0]?.estimateInr ?? 0),
         vehicleId: vehicle?.id,
         vehicleType: vehicle?.vehicleType,
-        vehicleLabel: vehicle
-          ? `${vehicle.label} · ${vehicle.registrationNumber}`
-          : undefined,
-        offerings: (describeIssue ? [] : chosen).map((c) => ({
-          id: c.id,
-          kind: c.kind,
-          name: c.name,
-          version: c.version,
-          scope: c.scope,
-          priceInr: Number(c.priceInr),
-          priceIsStarting: c.priceIsStarting,
-        })),
-        slotStart: undefined,
-        slotEnd: undefined,
-        issueDescription: undefined,
+        vehicleLabel: vehicle ? `${vehicle.label} · ${vehicle.registrationNumber}` : undefined,
+        ...selectionDraft(work, checked.vehicleTypes),
+        issueDescription: resumeSelection ? getDraft().issueDescription : undefined,
       });
       navigate(vehicle ? '/services/book/services' : '/services/book/vehicle');
     } catch (e) {
-      setError(errorMessage(e));
+      if (request === attempt.current) setError(errorMessage(e));
     } finally {
-      setBusy(false);
+      if (request === attempt.current) setBusy(false);
     }
   }
   return (
@@ -664,14 +698,32 @@ export function ExploreCenterScreen() {
       {center && (
         <>
           <div className="af-center-overview">
-            <CenterGallery centerName={center.displayName} heroImageUrl={center.heroImageUrl} photoUrls={center.photoUrls} supportedVehicleTypes={center.supportedVehicleTypes} />
+            <CenterGallery
+              centerName={center.displayName}
+              heroImageUrl={center.heroImageUrl}
+              photoUrls={center.photoUrls}
+              supportedVehicleTypes={center.supportedVehicleTypes}
+            />
             <div className="af-center-overview-copy">
               <p className="af-center-types">
                 {center.supportedVehicleTypes.map(vehicleTypeLabel).join(' · ')}
               </p>
               <p>{center.formattedAddress}</p>
               {center.postalCode && <p>PIN {center.postalCode}</p>}
-              {(center.googleMapsUrl || (center.latitude != null && center.longitude != null)) && <a className="af-skip" href={center.googleMapsUrl || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${center.latitude},${center.longitude}`)}`} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer">Open center in Google Maps ↗</a>}
+              {(center.googleMapsUrl || (center.latitude != null && center.longitude != null)) && (
+                <a
+                  className="af-skip"
+                  href={
+                    center.googleMapsUrl ||
+                    `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${center.latitude},${center.longitude}`)}`
+                  }
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  referrerPolicy="no-referrer"
+                >
+                  Open center in Google Maps ↗
+                </a>
+              )}
               <p>{center.about}</p>
               <p className="af-center-rating">
                 {center.ratingCount > 0 && center.ratingAvg
@@ -687,18 +739,13 @@ export function ExploreCenterScreen() {
             </div>
           </div>
           {serviceIds.length > 0 && menu && (
-            <section
-              className="af-requested-services"
-              aria-label="Your requested services"
-            >
+            <section className="af-requested-services" aria-label="Your requested services">
               <h2>Your requested services</h2>
               <p>Choose the work you want to book from the menu below.</p>
               <ul>
                 {serviceIds.map((serviceId) => {
                   const offering = menu.find(
-                    (item) =>
-                      item.kind === 'SERVICE' &&
-                      item.serviceDefinitionId === serviceId,
+                    (item) => item.kind === 'SERVICE' && item.serviceDefinitionId === serviceId,
                   );
                   const name =
                     definitions.find((item) => item.id === serviceId)?.name ??
@@ -721,45 +768,82 @@ export function ExploreCenterScreen() {
             </section>
           )}
           {menu && (
-            <MenuChoices
-              menu={menu}
-              picked={picked}
-              toggle={(key) =>
-                setPicked((old) => {
-                  const next = new Set(old);
-                  if (next.has(key)) next.delete(key);
-                  else next.add(key);
-                  return next;
-                })
-              }
-            />
+            <>
+              {changed && (
+                <p role="status">Price or scope changed. Review this menu before booking again.</p>
+              )}
+              {missing.map((item) => (
+                <p role="alert" key={choiceKey(item)}>
+                  {item.name} is no longer available.{' '}
+                  <button
+                    disabled={busy}
+                    onClick={() =>
+                      setPicked((old) => {
+                        const next = new Set(old);
+                        next.delete(choiceKey(item));
+                        return next;
+                      })
+                    }
+                  >
+                    Remove this selection
+                  </button>
+                </p>
+              ))}
+              {chosen.length > 0 && !types.length && (
+                <p role="alert">
+                  These selections cannot be serviced on one vehicle. Remove work for the other
+                  vehicle type.
+                </p>
+              )}
+              {selectedVehicleType && !vehicle && (
+                <p className="af-note" role="status">
+                  You are selecting work for a {vehicleTypeLabel(selectedVehicleType).toLowerCase()}
+                  . Other vehicle types are unavailable for this booking.
+                </p>
+              )}
+              <MenuChoices
+                menu={menu}
+                picked={picked}
+                busy={busy}
+                disabled={(item) =>
+                  Boolean(
+                    !picked.has(choiceKey(item)) &&
+                    !compatibleVehicleTypes([...chosen, item], center.supportedVehicleTypes).length,
+                  )
+                }
+                toggle={(key) =>
+                  setPicked((old) => {
+                    const next = new Set(old);
+                    if (next.has(key)) next.delete(key);
+                    else {
+                      const selections = menu.filter(
+                        (item) => old.has(choiceKey(item)) || choiceKey(item) === key,
+                      );
+                      if (!compatibleVehicleTypes(selections, center.supportedVehicleTypes).length)
+                        return old;
+                      next.add(key);
+                    }
+                    return next;
+                  })
+                }
+              />
+            </>
           )}
-          {menu?.length === 0 && (
-            <p>No bookable services for this vehicle are currently listed.</p>
-          )}
+          {menu?.length === 0 && <p>No bookable services for this vehicle are currently listed.</p>}
           {overlaps && (
             <p role="alert">
-              A service is included more than once. Remove the overlapping
-              selection.
+              A service is included more than once. Remove the overlapping selection.
             </p>
           )}
           {chosen.length > 10 && (
-            <p role="alert">
-              Select up to 10 services or packages for one booking.
-            </p>
+            <p role="alert">Select up to 10 services or packages for one booking.</p>
           )}
           {chosen.length > 0 && (
             <div className="af-total">
               <span>
-                {chosen.some((c) => c.priceIsStarting)
-                  ? 'Starting estimate'
-                  : 'Estimate'}
+                {chosen.some((c) => c.priceIsStarting) ? 'Starting estimate' : 'Estimate'}
               </span>
-              <b>
-                {formatInr(
-                  chosen.reduce((sum, c) => sum + Number(c.priceInr), 0),
-                )}
-              </b>
+              <b>{formatInr(chosen.reduce((sum, c) => sum + Number(c.priceInr), 0))}</b>
             </div>
           )}
           <button
@@ -769,6 +853,8 @@ export function ExploreCenterScreen() {
               !chosen.length ||
               chosen.length > 10 ||
               overlaps ||
+              !!missing.length ||
+              !types.length ||
               !center.bookingEnabled
             }
             onClick={() => void book()}
@@ -782,9 +868,7 @@ export function ExploreCenterScreen() {
           >
             Not sure what you need? Describe an issue instead
           </button>
-          {!center.bookingEnabled && (
-            <p>This center is not accepting bookings.</p>
-          )}
+          {!center.bookingEnabled && <p>This center is not accepting bookings.</p>}
         </>
       )}
     </section>
