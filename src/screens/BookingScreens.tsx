@@ -1,3 +1,4 @@
+import { clearBookingAttempt, readBookingAttempt } from '../lib/booking-attempt';
 import { ExploreScreen } from './ExploreScreens';
 import { MenuChoices } from '../components/MenuChoices';
 import {
@@ -462,22 +463,34 @@ export function BookScheduleScreen() {
     draft.slotStart && draft.slotEnd ? { start: draft.slotStart, end: draft.slotEnd } : null,
   );
   const [error, setError] = useState('');
+  const [refresh, setRefresh] = useState(0);
+  const [loading, setLoading] = useState(false);
+  useEffect(() => {
+    const update = () => setRefresh((value) => value + 1);
+    window.addEventListener('focus', update);
+    const timer = window.setInterval(update, 60000);
+    return () => { window.removeEventListener('focus', update); window.clearInterval(timer); };
+  }, []);
 
   useEffect(() => {
     if (!draft.centerId) return;
     let cancelled = false;
     setDay(null);
+    setLoading(true);
+    setError('');
     marketplaceApi
       .slots(draft.centerId, date)
       .then((result) => !cancelled && setDay(result))
-      .catch((err: unknown) => !cancelled && setError(errorMessage(err, 'Could not load slots')));
+      .catch((err: unknown) => !cancelled && setError(errorMessage(err, 'Could not load slots')))
+      .finally(() => { if (!cancelled) setLoading(false); });
     return () => {
       cancelled = true;
     };
-  }, [draft.centerId, date]);
+  }, [draft.centerId, date, refresh]);
 
   if (redirect) return <Navigate to={redirect} replace />;
-  const open = (day?.slots ?? []).filter((item) => item.available);
+  const open = (day?.date === date ? day.slots : []).filter((item) => item.available);
+  const outsideWindow = !!day && (date < day.firstDate || date > day.lastDate);
 
   return (
     <BookingShell
@@ -486,14 +499,16 @@ export function BookScheduleScreen() {
       subtitle={draft.centerName}
       back="/services/book/issue"
     >
+      <p className="af-hint">All times are in India Standard Time. Choose your arrival time; servicing may take longer than the slot.</p>
+      {day && <label>Choose a date<input type="date" value={date} min={day.firstDate} max={day.lastDate} onChange={(event) => { if (event.target.value) { setDate(event.target.value); setSlot(null); } }} /></label>}
       <div className="af-days">
-        {days.map((value) => {
+        {days.filter((value) => !day || (value >= day.firstDate && value <= day.lastDate)).map((value) => {
           const noon = new Date(`${value}T12:00:00+05:30`);
           return (
             <button
               className={date === value ? 'on' : ''}
               key={value}
-              onClick={() => setDate(value)}
+              onClick={() => { setDate(value); setSlot(null); }}
             >
               <b>
                 {noon.toLocaleDateString('en-IN', { day: 'numeric', timeZone: 'Asia/Kolkata' })}
@@ -506,10 +521,13 @@ export function BookScheduleScreen() {
         })}
       </div>
       <ErrorText error={error} />
+      <button type="button" className="af-btn secondary" disabled={loading} onClick={() => setRefresh((value) => value + 1)}>{loading ? 'Checking availability…' : 'Refresh availability'}</button>
+      {outsideWindow && <p className="af-note">Choose a date between {day?.firstDate} and {day?.lastDate}.</p>}
+      {!!day?.leadMinutes && <p className="af-hint">This center requires {day.leadMinutes} minutes' advance notice.</p>}
       {!day && !error ? <p className="af-hint">Checking availability…</p> : null}
       {day?.closed ? <p className="af-note">The center is closed on this day.</p> : null}
-      {day && !day.closed && open.length === 0 ? (
-        <p className="af-note">No slots left on this day.</p>
+      {day && !day.closed && !outsideWindow && open.length === 0 ? (
+        <p className="af-note">No bookable arrival slots on this day. Choose another date.</p>
       ) : null}
       <div className="af-slots">
         {open.map((item) => (
@@ -525,7 +543,7 @@ export function BookScheduleScreen() {
       </div>
       <button
         className="af-btn"
-        disabled={!slot || !open.some((item) => item.start === slot.start)}
+        disabled={loading || !!error || !slot || !open.some((item) => item.start === slot.start && item.end === slot.end)}
         onClick={() => {
           if (!slot) return;
           patchDraft({ slotStart: slot.start, slotEnd: slot.end });
@@ -555,8 +573,19 @@ export function BookReviewScreen() {
   const { draft, redirect } = useDraftGuard(['vehicleId', 'centerId', 'slotStart']);
   const { busy, error, run } = useAction();
   const [bookedId, setBookedId] = useState<string | null>(null);
+  const [pendingAttempt, setPendingAttempt] = useState(readBookingAttempt);
   const [eligibilityError, setEligibilityError] = useState<BookingEligibilityCode | null>(null);
   if (bookedId) return <Navigate to={`/services/${bookedId}?booked=1`} replace />;
+  if (pendingAttempt) return <BookingShell step={6} title="Check your booking" back="/services">
+    <ErrorText error={error} />
+    <p className="af-note">Your previous booking request may have succeeded. Check its result before making another booking. Your original selection will be used.</p>
+    <button className="af-btn" disabled={busy} onClick={() => void run(async () => {
+      try {
+        const id = await createBooking(pendingAttempt.input);
+        clearBookingAttempt(); clearDraft(); setBookedId(id);
+      } finally { setPendingAttempt(readBookingAttempt()); }
+    })}>{busy ? 'Checking…' : 'Check previous booking result'}</button>
+  </BookingShell>;
   if (redirect) return <Navigate to={redirect} replace />;
   if (eligibilityError) {
     return (
@@ -630,11 +659,12 @@ export function BookReviewScreen() {
         <>
           <Link to="/services/book/services">Review current services and prices</Link>
           <Link to="/services/book/vehicle">Choose another vehicle</Link>
+          <Link to="/services/book/schedule">Choose a current arrival slot</Link>
         </>
       )}
       <button
         className="af-btn"
-        disabled={busy}
+        disabled={busy || !!pendingAttempt}
         onClick={() =>
           void run(async () => {
             try {
@@ -650,9 +680,11 @@ export function BookReviewScreen() {
                 })),
                 issueDescription: draft.issueDescription,
               });
+              clearBookingAttempt();
               clearDraft();
               setBookedId(id);
             } catch (err) {
+              setPendingAttempt(readBookingAttempt());
               if (err instanceof ApiError && isBookingEligibilityCode(err.code)) {
                 setEligibilityError(err.code);
                 return;

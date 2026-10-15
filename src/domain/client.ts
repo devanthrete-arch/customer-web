@@ -1,3 +1,4 @@
+import { reserveBooking } from '../lib/booking-attempt';
 import { autoflex } from '../lib/api';
 import type {
   ApiAddress,
@@ -126,8 +127,7 @@ export const customerApi = {
   restoreVehicle: (id: string) => send<ApiGarageVehicle>('POST', `/v1/me/vehicles/${id}/restore`),
 
   bookings: async () => (await get<{ items: ApiBooking[] }>('/v1/bookings')).items,
-  createBooking: (input: BookingInput) =>
-    send<ApiBooking>('POST', '/v1/bookings', { ...input, mode: 'SELF_CHECKIN', paymentMode: 'PAY_AT_CENTER' }),
+  createBooking: (input: BookingInput) => reserveBooking(input),
   cancelBooking: (id: string, reason?: string) =>
     send<ApiBooking>('POST', `/v1/bookings/${id}/cancel`, { reason }),
 
@@ -189,5 +189,5 @@ export const marketplaceApi = {
       { method: 'POST', body: JSON.stringify({ selections, ...(vehicleType ? { vehicleType } : {}) }) },
     ),
   slots: (centerId: string, date: string) =>
-    autoflex<ApiSlotDay>(`/v1/centers/${centerId}/slots?date=${date}`),
+    autoflex<ApiSlotDay>(`/v1/centers/${centerId}/slots?date=${date}`, { signal: AbortSignal.timeout(15000) }),
 };

@@ -333,7 +333,7 @@ export type ApiBookingOptions = {
   slotCapacity: number;
 };
 
-export type ApiSlotDay = { date: string; closed: boolean; slots: ApiSlot[] };
+export type ApiSlotDay = { date: string; closed: boolean; slots: ApiSlot[]; firstDate: string; lastDate: string; leadMinutes: number; scheduleRevision: number; serverNow: string; timeZone: string; slotMinutes: number };
 
 export type ApiOffering = {
   version: number;
