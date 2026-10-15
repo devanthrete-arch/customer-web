@@ -1,4 +1,5 @@
 import { reserveBooking } from '../lib/booking-attempt';
+import { submitApprovalDecision } from '../lib/approval-attempt';
 import { autoflex } from '../lib/api';
 import type {
   ApiAddress,
@@ -134,7 +135,7 @@ export const customerApi = {
   jobs: () => get<ApiCustomerJobSummary[]>('/v1/me/jobs'),
   job: (id: string) => get<ApiCustomerJob>(`/v1/me/jobs/${id}`),
   decideApproval: (jobId: string, approvalId: string, decision: ApprovalDecision) =>
-    send<ApiCustomerJob>('POST', `/v1/me/jobs/${jobId}/approvals/${approvalId}/decision`, decision),
+    submitApprovalDecision(jobId, approvalId, decision),
 
   invoices: () => get<ApiInvoice[]>('/v1/me/invoices'),
 

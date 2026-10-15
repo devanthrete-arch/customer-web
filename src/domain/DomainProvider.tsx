@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from 'react';
 import { errorMessage } from '../lib/api';
+import { clearApprovalAttempt } from '../lib/approval-attempt';
 import type { ApiBooking, ApiCustomerJob } from './api-types';
 import {
   customerApi,
@@ -247,6 +248,7 @@ export function DomainProvider({ children }: { children: ReactNode }) {
       async decideApproval(jobId, approvalId, decision) {
         await customerApi.decideApproval(jobId, approvalId, decision);
         await reloadServices();
+        clearApprovalAttempt(jobId, approvalId);
       },
       async addDocument(input) {
         const document = await customerApi.addDocument(input);

@@ -26,3 +26,12 @@ Open `/tests/location.html` for the shared provider/picker checks: fresh-login g
 The location fixture has 23 scenarios, including saved PIN resolution, API localities/selection, invalid/unavailable/mismatched/stale PIN handling, PIN-vs-PIN and PIN-vs-GPS races, and exact GPS clearing an earlier PIN from session and profile. GPS requests a fresh high-accuracy position. `/tests/center-gallery.html` adds seven scenarios for cover/dedup/navigation, broken-image recovery, gallery replacement, decorative thumbnail accessibility, safe preview-link nesting and narrow-width layout. Its images use existing licensed local assets; it does not publish them as photos of real centers.
 
 Booking scheduling: `/tests/booking-schedule.html` verifies availability failure/retry, focus refresh of a filled slot, notes preservation and stable reservation retry requests (8 assertions).
+
+
+## AF-006 approval retry
+
+Run `node tests/approval-attempt.test.mjs` from `customer-web`. The isolated
+transport test simulates a lost response after an approval commit. It verifies
+that the next request keeps the exact decision body and Idempotency-Key, and
+that a changed decision is refused until the pending result is resolved.
+`npm run build` typechecks the production customer flow.
