@@ -1,3 +1,4 @@
+import { ReceptionConsentScreen } from './screens/ReceptionConsentScreen';
 import { ExploreScreen, ExploreCenterScreen } from './screens/ExploreScreens';
 import { SupportDetailScreen } from './screens/SupportDetailScreen';
 import { useEffect } from 'react';
@@ -98,6 +99,7 @@ export default function App() {
       <Route path="/" element={<FrontDoor />} />
       <Route path="/landing" element={<Navigate to="/" replace />} />
       <Route element={<PhoneFrame />}>
+        <Route path="/reception/:id" element={<ReceptionConsentScreen />} />
         <Route path="/auth/sign-in" element={<AuthSignInScreen />} />
         <Route path="/auth/register" element={<AuthRegisterScreen />} />
         <Route path="/auth/otp" element={<AuthOtpScreen />} />

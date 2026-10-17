@@ -204,6 +204,15 @@ export type ApiCustomerJob = {
 export type ApiCustomerJobSummary = { id: string };
 
 export type ApiInvoice = {
+  corrections?:{pendingDebitCount:number;outstandingDebitInr:string;issuedCreditInr:string};
+  schemaVersion?: number;
+  documentKind?: string;
+  documentState?: 'NOT_CONFIGURED' | 'AVAILABLE_ON_REQUEST';
+  voidReason?: string | null;
+  voidedAt?: string | null;
+  replacementForInvoiceId?: string | null;
+  supplyDate?: string | null;
+  placeOfSupply?: { stateCode: string; context: string } | null;
   id: string;
   invoiceNumber: string;
   jobId: string;
@@ -215,12 +224,12 @@ export type ApiInvoice = {
   paidInr: string;
   balanceInr: string;
   seller: { name: string; gstin: string | null; phone: string | null; address: string | null };
-  buyer: { name: string | null; phone: string | null; vehicleRegistration: string | null; vehicleLabel: string | null };
+  buyer: { name: string | null; phone: string | null; vehicleRegistration: string | null; vehicleLabel: string | null; type?: 'INDIVIDUAL' | 'BUSINESS'; gstin?: string; address?: string; pin?: string; stateCode?: string };
   notes: string | null;
   upiVpa: string | null;
   issuedAt: string;
   paidAt: string | null;
-  lineItems: { kind: string; description: string; quantity: number; unitPriceInr: string; amountInr: string }[];
+  lineItems: { kind: string; description: string; quantity: number; unitPriceInr: string; amountInr: string; taxInr?: string; taxSnapshot?: { discountInr?: string; discountReason?: string; classificationCode?: string; cgstInr?: string; sgstInr?: string; igstInr?: string } | null }[];
   payments: { id: string; method: string; amountInr: string; reference: string | null; receivedAt: string }[];
 };
 

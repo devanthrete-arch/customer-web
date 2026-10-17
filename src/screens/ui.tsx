@@ -1,7 +1,12 @@
 import { useCallback, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { errorMessage } from '../lib/api';
-import type { MaintenanceItem, ServiceStatus, VaultDocument } from '../domain/model';
+import type {
+  MaintenanceItem,
+  ServiceStatus,
+  VaultDocument,
+} from '../domain/model';
+import { Icon } from '../components/Icons';
 
 export type Tone = 'blue' | 'orange' | 'green' | 'gray' | 'red';
 
@@ -27,7 +32,13 @@ export function PageHeader({
   );
 }
 
-export function StatusPill({ children, tone = 'blue' }: { children: ReactNode; tone?: Tone }) {
+export function StatusPill({
+  children,
+  tone = 'blue',
+}: {
+  children: ReactNode;
+  tone?: Tone;
+}) {
   return <span className={`af-status af-status-${tone}`}>{children}</span>;
 }
 
@@ -44,9 +55,18 @@ export function NotFound({ title, back }: { title: string; back: string }) {
   );
 }
 
-export function Empty({ title, children }: { title: string; children?: ReactNode }) {
+export function Empty({
+  title,
+  children,
+}: {
+  title: string;
+  children?: ReactNode;
+}) {
   return (
     <div className="af-panel af-empty-panel">
+      <span className="af-empty-mark" aria-hidden="true">
+        <Icon name="file" />
+      </span>
       <h3>{title}</h3>
       {children}
     </div>
@@ -54,7 +74,11 @@ export function Empty({ title, children }: { title: string; children?: ReactNode
 }
 
 export function ErrorText({ error }: { error: string }) {
-  return error ? <p className="af-error">{error}</p> : null;
+  return error ? (
+    <p className="af-error" role="alert">
+      {error}
+    </p>
+  ) : null;
 }
 
 /** Busy and error state for one async user action. */

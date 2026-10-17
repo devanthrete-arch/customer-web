@@ -3349,3 +3349,20 @@ h1,
 @media (prefers-reduced-motion: reduce) {
   .af-center-card, .af-menu-choice { transition: none; }
 }
+
+/* Clear choice hierarchy and shared feedback without changing the booking flow. */
+.af-menu-section-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.af-menu-section-heading h2 { margin: 0; }
+.af-menu-section-heading > span { color: var(--af-muted); font-size: 12px; }
+.af-menu-choice-copy .af-menu-selected { display: inline-flex; margin: 0 0 7px; padding: 3px 7px; border-radius: 5px; color: var(--af-accent); background: color-mix(in srgb, var(--af-accent) 13%, var(--af-surface)); font-size: 11px; font-weight: 600; letter-spacing: .02em; }
+.af-menu-choice-price { align-self: end; }
+.af-empty-mark { display: inline-grid; place-items: center; width: 48px; height: 48px; border-radius: 14px; color: var(--af-accent); background: color-mix(in srgb, var(--af-accent) 10%, var(--af-surface)); margin-bottom: 14px; }
+.af-empty-mark .af-icon { width: 23px; height: 23px; }
+.af-empty-panel p { max-width: 38ch; line-height: 1.6; }
+.af-error { border-inline-start: 3px solid currentColor; padding-inline-start: 12px; line-height: 1.55; overflow-wrap: anywhere; }
+@media (max-width: 380px) {
+  .af-menu-choice { grid-template-columns: 20px minmax(0, 1fr); gap: 10px 12px; padding: 14px; }
+  .af-menu-choice-photos { grid-column: 2; height: 112px; }
+  .af-menu-choice-copy, .af-menu-choice-price { grid-column: 2; }
+  .af-menu-choice > input { grid-column: 1; grid-row: 1; }
+}

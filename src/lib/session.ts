@@ -35,7 +35,7 @@ export function beginAuthenticatedSession(token: string): void {
 
 export function safeCustomerReturnTo(value: string): boolean {
   return (
-    /^\/(home|explore|vehicles|services|documents|history|maintenance|payments|notifications|support|profile)([/?#]|$)/.test(
+    /^\/(home|explore|vehicles|services|documents|history|maintenance|payments|notifications|support|profile|reception)([/?#]|$)/.test(
       value,
     ) &&
     !value.startsWith('/profile/setup') &&

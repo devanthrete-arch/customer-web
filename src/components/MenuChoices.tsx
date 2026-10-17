@@ -22,7 +22,12 @@ export function MenuChoices({
         if (!rows.length) return null;
         return (
           <section className="af-menu-section" key={kind}>
-            <h2>{kind === 'SERVICE' ? 'Services' : 'Packages'}</h2>
+            <div className="af-menu-section-heading">
+              <h2>{kind === 'SERVICE' ? 'Services' : 'Packages'}</h2>
+              <span>
+                {rows.length} {rows.length === 1 ? 'option' : 'options'}
+              </span>
+            </div>
             <p className="af-menu-intro">
               {kind === 'SERVICE'
                 ? 'Choose the individual work you need.'
@@ -46,6 +51,9 @@ export function MenuChoices({
                     ))}
                   </span>
                   <span className="af-menu-choice-copy">
+                    {picked.has(choiceKey(item)) ? (
+                      <span className="af-menu-selected">Selected</span>
+                    ) : null}
                     <b>{item.name}</b>
                     <small>{item.description}</small>
                     <small>
@@ -57,14 +65,18 @@ export function MenuChoices({
                       · About {item.durationMinutes} minutes
                     </small>
                     {disabled?.(item) ? (
-                      <small>Choose a separate booking for this vehicle type.</small>
+                      <small>
+                        Choose a separate booking for this vehicle type.
+                      </small>
                     ) : null}
                     {kind === 'PACKAGE' && (
                       <ul>
                         {item.scope.map((part) => (
                           <li key={part.offeringId}>
                             {part.quantity} × {part.name}
-                            {part.description ? <small>{part.description}</small> : null}
+                            {part.description ? (
+                              <small>{part.description}</small>
+                            ) : null}
                           </li>
                         ))}
                       </ul>
@@ -82,8 +94,8 @@ export function MenuChoices({
       })}
       {menu.length > 0 && (
         <p className="af-market-photo-note">
-          Photos illustrate the type of work. The descriptions and package inclusions define your
-          booking.
+          Photos illustrate the type of work. The descriptions and package
+          inclusions define your booking.
         </p>
       )}
     </>

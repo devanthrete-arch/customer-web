@@ -176,8 +176,7 @@ export function ServiceDetailScreen() {
               <StatusPill tone="green">Ready for pickup</StatusPill>
               <h3>Your vehicle is ready at {service.centerName}</h3>
               <p>
-                Pay {formatInr(service.balanceInr || service.currentInr || 0)} at the counter by UPI, card or cash when you
-                collect it.
+                {service.invoiceId ? `Pay ${formatInr(service.balanceInr ?? 0)} at the counter by UPI, card or cash when you collect it.` : `Current estimate ${formatInr(service.currentInr ?? 0)}. The center will issue your final invoice before payment.`}
               </p>
               {service.invoiceId ? (
                 <Link to={`/payments/${service.invoiceId}`}>View bill →</Link>

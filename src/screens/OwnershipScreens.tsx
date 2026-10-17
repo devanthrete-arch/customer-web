@@ -1,3 +1,5 @@
+import { FinancialNotes } from '../components/FinancialNotes';
+import { InvoiceDownload } from '../components/InvoiceDownload';
 import { useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useDomain } from '../domain/DomainProvider';
@@ -603,7 +605,7 @@ export function MaintenanceDetailScreen() {
 export function PaymentsScreen() {
   const { state } = useDomain();
   const due = state.invoices.filter((item) => item.status === 'DUE');
-  const outstanding = due.reduce((sum, item) => sum + item.balanceInr, 0);
+  const outstanding = due.reduce((sum, item) => sum + item.balanceInr, 0) + state.invoices.reduce((sum,item)=>sum+Number(item.corrections?.outstandingDebitInr??0),0);
   return (
     <section className="af-screen af-wide">
       <PageHeader title="Payments & bills" />
@@ -611,7 +613,7 @@ export function PaymentsScreen() {
         <span>To pay at the center</span>
         <b>{formatInr(outstanding)}</b>
         <small>
-          {due.length} open bill{due.length === 1 ? '' : 's'}
+          {due.length} open bill{due.length === 1 ? '' : 's'} · includes issued additional charges
         </small>
       </article>
       <div className="af-grid-2 af-content-gap">
@@ -619,11 +621,13 @@ export function PaymentsScreen() {
           <Link className="af-service-card" to={`/payments/${invoice.id}`} key={invoice.id}>
             <div className="af-card-line">
               <span className="af-kicker">{invoice.invoiceNumber}</span>
-              <StatusPill tone={invoice.status === 'PAID' ? 'green' : 'orange'}>
-                {invoice.status === 'PAID' ? 'Paid' : 'To pay'}
+              <StatusPill tone={invoice.status === 'PAID' ? 'green' : invoice.status === 'VOID' ? 'gray' : 'orange'}>
+                {invoice.status === 'PAID' ? 'Paid' : invoice.status === 'VOID' ? 'Cancelled' : 'To pay'}
               </StatusPill>
             </div>
             <h3>{formatInr(invoice.totalInr)}</h3>
+            {invoice.corrections?.pendingDebitCount ? <p className="af-note">An additional charge needs your attention.</p> : null}
+            {Number(invoice.corrections?.outstandingDebitInr??0)>0 ? <p className="af-note">Additional charge due: {formatInr(Number(invoice.corrections!.outstandingDebitInr))}</p> : null}
             <p>
               {invoice.buyer.vehicleLabel ?? 'Vehicle'} · {invoice.buyer.vehicleRegistration}
             </p>
@@ -655,6 +659,12 @@ export function PaymentDetailScreen() {
       <div className="af-panel">
         <span className="af-kicker">{invoice.invoiceNumber}</span>
         <h2>{invoice.seller.name}</h2>
+        <p className="af-meta">{invoice.schemaVersion === 2 ? ({ TAX_INVOICE: 'Tax invoice', BILL_OF_SUPPLY: 'Bill of supply', COMMERCIAL_BILL: 'Commercial bill' }[invoice.documentKind ?? ''] ?? 'Bill') : 'Legacy bill'}</p>
+        {invoice.schemaVersion === 2 ? <>
+          <p className="af-meta">{invoice.seller.address}{invoice.seller.gstin ? ` · GSTIN ${invoice.seller.gstin}` : ''}</p>
+          <p className="af-meta">Billed to {invoice.buyer.name} · {invoice.buyer.address} · {invoice.buyer.pin}{invoice.buyer.gstin ? ` · GSTIN ${invoice.buyer.gstin}` : ''}</p>
+          {invoice.placeOfSupply ? <p className="af-meta">Place of supply: state {invoice.placeOfSupply.stateCode}</p> : null}
+        </> : null}
         <p className="af-meta">
           {invoice.buyer.vehicleLabel} · {invoice.buyer.vehicleRegistration} · {formatDate(invoice.issuedAt)}
         </p>
@@ -663,10 +673,18 @@ export function PaymentDetailScreen() {
             <span>
               {line.description}
               {line.quantity > 1 ? <small className="af-meta"> × {line.quantity}</small> : null}
+              {line.taxSnapshot?.discountInr ? <small className="af-meta"> · Discount {formatInr(Number(line.taxSnapshot.discountInr))} ({line.taxSnapshot.discountReason})</small> : null}
+              {line.taxSnapshot?.classificationCode ? <small className="af-meta"> · HSN/SAC {line.taxSnapshot.classificationCode}</small> : null}
             </span>
             <b>{formatInr(Number(line.amountInr))}</b>
           </div>
         ))}
+        {invoice.schemaVersion === 2 && invoice.documentKind === 'TAX_INVOICE' ? <>
+          <div className="af-row"><span>Taxable and exempt subtotal</span><b>{formatInr(invoice.subtotalInr)}</b></div>
+          <div className="af-row"><span>CGST</span><b>{formatInr(invoice.lineItems.reduce((sum, line) => sum + Number(line.taxSnapshot?.cgstInr ?? 0), 0))}</b></div>
+          <div className="af-row"><span>SGST / UTGST</span><b>{formatInr(invoice.lineItems.reduce((sum, line) => sum + Number(line.taxSnapshot?.sgstInr ?? 0), 0))}</b></div>
+          <div className="af-row"><span>IGST</span><b>{formatInr(invoice.lineItems.reduce((sum, line) => sum + Number(line.taxSnapshot?.igstInr ?? 0), 0))}</b></div>
+        </> : null}
         <div className="af-total">
           <span>Total</span>
           <b>{formatInr(invoice.totalInr)}</b>
@@ -674,7 +692,9 @@ export function PaymentDetailScreen() {
         {invoice.notes ? <p className="af-hint">{invoice.notes}</p> : null}
       </div>
 
-      {invoice.status === 'PAID' ? (
+      {invoice.schemaVersion === 2 ? <InvoiceDownload id={invoice.id} number={invoice.invoiceNumber}/> : null}
+      {invoice.schemaVersion===2&&invoice.status==='PAID'?<FinancialNotes key={invoice.id} invoiceId={invoice.id}/>:null}
+      {invoice.status === 'VOID' ? <p className="af-note">This invoice was cancelled. Do not pay it. {invoice.voidReason}</p> : invoice.status === 'PAID' ? (
         <div className="af-success">
           <div className="af-check">✓</div>
           <h2>Paid {formatInr(invoice.paidInr)}</h2>
